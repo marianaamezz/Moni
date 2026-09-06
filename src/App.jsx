@@ -135,6 +135,7 @@ function MainApp() {
             categoriasN2={categoriasN2}
             cuentas={cuentas}
             transacciones={transacciones}
+            selectedCurrency={selectedCurrency}
             onAddN1={addCategoriaN1}
             onDeleteN1={deleteCategoriaN1}
             onAddN2={addCategoriaN2}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, X, Tag, Landmark, Users, FileSpreadsheet, Download } from 'lucide-react';
+import { Plus, X, Tag, Landmark, Users, FileSpreadsheet } from 'lucide-react';
 import { getCategoryIcon } from '../lib/icons';
 import { exportCategoryToExcel } from '../lib/exportExcel';
 
@@ -8,6 +8,7 @@ export function CategoriasView({
   categoriasN2,
   cuentas,
   transacciones = [],
+  selectedCurrency = 'PEN',
   onAddN1,
   onDeleteN1,
   onAddN2,
@@ -43,6 +44,42 @@ export function CategoriasView({
     });
   };
 
+  // Calcular balance de una categoría N1 (Ingresos - Egresos)
+  const getCategoryBalance = (catId) => {
+    let pen = 0;
+    let usd = 0;
+    let totalIngresos = 0;
+    let totalEgresos = 0;
+
+    const catTx = transacciones.filter((t) => t.categoria_n1_id === catId);
+
+    catTx.forEach((t) => {
+      const monto = Number(t.monto) || 0;
+      const isUSD = t.moneda === 'USD';
+
+      if (t.tipo === 'ingreso') {
+        totalIngresos++;
+        if (isUSD) usd += monto;
+        else pen += monto;
+      } else if (t.tipo === 'gasto' || t.tipo === 'transferencia') {
+        totalEgresos++;
+        if (isUSD) usd -= monto;
+        else pen -= monto;
+      }
+    });
+
+    const balanceValue = selectedCurrency === 'USD' ? usd : pen;
+
+    return {
+      balanceValue,
+      pen,
+      usd,
+      totalCount: catTx.length,
+      totalIngresos,
+      totalEgresos,
+    };
+  };
+
   return (
     <div
       style={{
@@ -66,7 +103,7 @@ export function CategoriasView({
           Categorías y Cuentas
         </h2>
         <p style={{ fontSize: '13px', color: 'var(--c-muted)', marginTop: '2px' }}>
-          Personaliza tus listas y descarga tus reportes en Excel
+          Balances en vivo por categoría y descargas en Excel
         </p>
       </div>
 
@@ -207,17 +244,19 @@ export function CategoriasView({
           }}
         >
           {activeSubTab === 'n1'
-            ? 'Destinos (Para quién) y Descarga Excel'
+            ? 'Destinos (Para quién), Balances y Descarga Excel'
             : activeSubTab === 'n2'
             ? 'Conceptos de gasto (En qué)'
             : 'Cuentas registradas'}
         </div>
 
-        {/* N1 con botón de Descarga Excel individual */}
+        {/* N1 con Balance al lado del nombre y botón de Descarga Excel */}
         {activeSubTab === 'n1' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {categoriasN1.map((item) => {
-              const txCount = transacciones.filter((t) => t.categoria_n1_id === item.id).length;
+              const { balanceValue, totalCount } = getCategoryBalance(item.id);
+              const isNegative = balanceValue < 0;
+              const currSymbol = selectedCurrency === 'USD' ? '$' : 'S/';
 
               return (
                 <div
@@ -226,34 +265,64 @@ export function CategoriasView({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    padding: '12px 16px',
+                    padding: '14px 16px',
                     borderRadius: '18px',
                     backgroundColor: 'var(--c-surface)',
                     border: '1px solid var(--c-border)',
                     boxShadow: 'var(--shadow-subtle)',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <div
                       style={{
-                        width: '36px',
-                        height: '36px',
+                        width: '38px',
+                        height: '38px',
                         borderRadius: '12px',
                         backgroundColor: 'var(--c-surface-2)',
                         color: 'var(--c-accent)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
+                        flexShrink: 0,
                       }}
                     >
                       {getCategoryIcon(item.nombre, 18)}
                     </div>
                     <div>
-                      <div style={{ fontSize: '15px', fontWeight: '600', color: 'var(--c-text)' }}>
-                        {item.nombre}
+                      {/* Nombre y Balance al lado */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '15px', fontWeight: '600', color: 'var(--c-text)' }}>
+                          {item.nombre}
+                        </span>
+
+                        {/* Píldora de Balance al lado del nombre */}
+                        <span
+                          className="font-tabular"
+                          style={{
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            padding: '2px 8px',
+                            borderRadius: '9999px',
+                            backgroundColor: isNegative
+                              ? 'rgba(91, 55, 101, 0.08)'
+                              : 'rgba(16, 185, 129, 0.1)',
+                            color: isNegative ? 'var(--c-accent)' : '#059669',
+                            border: `1px solid ${
+                              isNegative ? 'var(--c-border)' : 'rgba(16, 185, 129, 0.2)'
+                            }`,
+                          }}
+                        >
+                          {isNegative ? '-' : '+'}{currSymbol}{' '}
+                          {Math.abs(balanceValue).toLocaleString('es-PE', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                        </span>
                       </div>
-                      <div style={{ fontSize: '12px', color: 'var(--c-muted)' }}>
-                        {txCount} {txCount === 1 ? 'movimiento' : 'movimientos'}
+
+                      {/* Movimientos */}
+                      <div style={{ fontSize: '12px', color: 'var(--c-muted)', marginTop: '2px' }}>
+                        {totalCount} {totalCount === 1 ? 'movimiento' : 'movimientos'}
                       </div>
                     </div>
                   </div>
@@ -264,7 +333,7 @@ export function CategoriasView({
                       type="button"
                       onClick={() => handleExportN1(item)}
                       className="tap-active"
-                      title={`Descargar Excel de ${item.nombre}`}
+                      title={`Descargar Excel de ${item.nombre} con balance`}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
