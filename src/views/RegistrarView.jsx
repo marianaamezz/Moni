@@ -1,19 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Keypad } from '../components/Keypad';
 import { getCategoryIcon } from '../lib/icons';
-import { ChevronDown, ChevronUp, Check, Calendar, FileText } from 'lucide-react';
+import { ChevronDown, ChevronUp, Check, Calendar, FileText, ArrowRight, Repeat } from 'lucide-react';
 
 export function RegistrarView({
   categoriasN1,
   categoriasN2,
   cuentas,
   onSaveTransaccion,
+  onSaveTransferencia,
   selectedCurrency,
   onToggleCurrency,
 }) {
   const [tipo, setTipo] = useState('gasto'); // 'gasto' | 'ingreso' | 'transferencia'
   const [montoStr, setMontoStr] = useState('0');
   const [selectedN1, setSelectedN1] = useState(categoriasN1[0]?.id || null);
+  const [selectedDestinoN1, setSelectedDestinoN1] = useState(null);
   const [selectedN2, setSelectedN2] = useState(null);
   const [selectedCuenta, setSelectedCuenta] = useState(null);
   const [nota, setNota] = useState('');
@@ -22,20 +24,34 @@ export function RegistrarView({
   const [savedFeedback, setSavedFeedback] = useState(false);
 
   // Asegurar selección inicial de N1 si aún no está lista
-  React.useEffect(() => {
+  useEffect(() => {
     if (!selectedN1 && categoriasN1.length > 0) {
       setSelectedN1(categoriasN1[0].id);
     }
   }, [categoriasN1, selectedN1]);
 
-  const montoNum = parseFloat(montoStr) || 0;
-  const isFormValid = montoNum > 0 && Boolean(selectedN1);
+  // Si cambia el origen en transferencia y coincide con el destino, ajustar destino
+  useEffect(() => {
+    if (tipo === 'transferencia') {
+      const posiblesDestinos = categoriasN1.filter((c) => c.id !== selectedN1);
+      if (posiblesDestinos.length > 0 && (!selectedDestinoN1 || selectedDestinoN1 === selectedN1)) {
+        setSelectedDestinoN1(posiblesDestinos[0].id);
+      }
+    }
+  }, [tipo, selectedN1, categoriasN1, selectedDestinoN1]);
 
-  // Contador de opciones secundarias seleccionadas
+  const montoNum = parseFloat(montoStr) || 0;
+
+  // Validación del formulario según el tipo
+  const isTransferencia = tipo === 'transferencia';
+  const isFormValid = isTransferencia
+    ? montoNum > 0 && Boolean(selectedN1) && Boolean(selectedDestinoN1) && selectedN1 !== selectedDestinoN1
+    : montoNum > 0 && Boolean(selectedN1);
+
+  // Contador de opciones secundarias seleccionadas en el panel colapsable
   const secondaryCount = [
     Boolean(selectedN2),
     Boolean(selectedCuenta),
-    Boolean(nota.trim()),
     fecha !== new Date().toISOString().split('T')[0],
   ].filter(Boolean).length;
 
@@ -43,16 +59,32 @@ export function RegistrarView({
     if (!isFormValid) return;
 
     try {
-      await onSaveTransaccion({
-        monto: montoNum,
-        moneda: selectedCurrency,
-        tipo,
-        categoria_n1_id: selectedN1,
-        categoria_n2_id: selectedN2,
-        cuenta_id: selectedCuenta,
-        nota: nota.trim(),
-        fecha: new Date(fecha).toISOString(),
-      });
+      if (isTransferencia) {
+        const origenCat = categoriasN1.find((c) => c.id === selectedN1);
+        const destinoCat = categoriasN1.find((c) => c.id === selectedDestinoN1);
+
+        await onSaveTransferencia({
+          monto: montoNum,
+          moneda: selectedCurrency,
+          origenId: selectedN1,
+          destinoId: selectedDestinoN1,
+          origenNombre: origenCat?.nombre || 'Origen',
+          destinoNombre: destinoCat?.nombre || 'Destino',
+          nota: nota.trim(),
+          fecha: new Date(fecha).toISOString(),
+        });
+      } else {
+        await onSaveTransaccion({
+          monto: montoNum,
+          moneda: selectedCurrency,
+          tipo,
+          categoria_n1_id: selectedN1,
+          categoria_n2_id: selectedN2,
+          cuenta_id: selectedCuenta,
+          nota: nota.trim(),
+          fecha: new Date(fecha).toISOString(),
+        });
+      }
 
       // Resetear estado
       setMontoStr('0');
@@ -61,13 +93,16 @@ export function RegistrarView({
       setNota('');
       setShowMoreOptions(false);
 
-      // Feedback suave
+      // Feedback visual suave
       setSavedFeedback(true);
       setTimeout(() => setSavedFeedback(false), 2200);
     } catch (err) {
-      console.error('Error guardando transacción:', err);
+      console.error('Error al guardar:', err);
     }
   };
+
+  const origenCat = categoriasN1.find((c) => c.id === selectedN1);
+  const destinoCat = categoriasN1.find((c) => c.id === selectedDestinoN1);
 
   return (
     <div
@@ -89,8 +124,8 @@ export function RegistrarView({
           borderRadius: '9999px',
           padding: '4px',
           width: '100%',
-          maxWidth: '340px',
-          marginBottom: '20px',
+          maxWidth: '360px',
+          marginBottom: '18px',
           border: '1px solid var(--c-border)',
         }}
       >
@@ -104,7 +139,10 @@ export function RegistrarView({
             <button
               key={t.id}
               type="button"
-              onClick={() => setTipo(t.id)}
+              onClick={() => {
+                setTipo(t.id);
+                setShowMoreOptions(false);
+              }}
               className="tap-active"
               style={{
                 flex: 1,
@@ -131,7 +169,7 @@ export function RegistrarView({
           alignItems: 'baseline',
           justifyContent: 'center',
           gap: '8px',
-          margin: '12px 0 24px',
+          margin: '8px 0 20px',
           cursor: 'pointer',
         }}
         onClick={onToggleCurrency}
@@ -163,62 +201,218 @@ export function RegistrarView({
         </span>
       </div>
 
-      {/* Chips de "Para quién" / N1 (Obligatorio, visibles por defecto) */}
-      <div style={{ width: '100%', marginBottom: '20px' }}>
-        <div
-          style={{
-            fontSize: '12px',
-            color: 'var(--c-muted)',
-            marginBottom: '8px',
-            fontWeight: '500',
-            textTransform: 'uppercase',
-            letterSpacing: '0.04em',
-            textAlign: 'center',
-          }}
-        >
-          ¿Para quién / de dónde?
+      {/* FLUJO DE TRANSFERENCIA: De origen hacia destino */}
+      {isTransferencia ? (
+        <div style={{ width: '100%', marginBottom: '16px' }}>
+          {/* Desde dónde (Origen) */}
+          <div style={{ marginBottom: '12px' }}>
+            <div
+              style={{
+                fontSize: '11px',
+                color: 'var(--c-muted)',
+                marginBottom: '6px',
+                fontWeight: '600',
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+                textAlign: 'center',
+              }}
+            >
+              ¿Desde dónde se envía? (Origen)
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px' }}>
+              {categoriasN1.map((c) => {
+                const isSelected = selectedN1 === c.id;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => setSelectedN1(c.id)}
+                    className="tap-active"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '7px 14px',
+                      borderRadius: '9999px',
+                      backgroundColor: isSelected ? 'var(--c-accent)' : 'var(--c-surface)',
+                      color: isSelected ? '#FFFFFF' : 'var(--c-text)',
+                      border: `1px solid ${isSelected ? 'var(--c-accent)' : 'var(--c-border)'}`,
+                      boxShadow: 'var(--shadow-subtle)',
+                      fontSize: '13px',
+                      fontWeight: isSelected ? '600' : '400',
+                      transition: 'all 0.12s ease',
+                    }}
+                  >
+                    {getCategoryIcon(c.nombre, 14, isSelected ? 'text-white' : '')}
+                    <span>{c.nombre}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Flecha indicadora de flujo */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              margin: '6px 0',
+              color: 'var(--c-accent2)',
+              fontSize: '12px',
+              fontWeight: '500',
+            }}
+          >
+            <span>{origenCat?.nombre || 'Origen'}</span>
+            <ArrowRight size={14} />
+            <span>{destinoCat?.nombre || 'Destino'}</span>
+          </div>
+
+          {/* Hacia dónde (Destino) */}
+          <div>
+            <div
+              style={{
+                fontSize: '11px',
+                color: 'var(--c-muted)',
+                marginBottom: '6px',
+                fontWeight: '600',
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+                textAlign: 'center',
+              }}
+            >
+              ¿Hacia dónde se transfiere? (Destino)
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px' }}>
+              {categoriasN1
+                .filter((c) => c.id !== selectedN1)
+                .map((c) => {
+                  const isSelected = selectedDestinoN1 === c.id;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setSelectedDestinoN1(c.id)}
+                      className="tap-active"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '7px 14px',
+                        borderRadius: '9999px',
+                        backgroundColor: isSelected ? 'var(--c-accent2)' : 'var(--c-surface)',
+                        color: isSelected ? '#FFFFFF' : 'var(--c-text)',
+                        border: `1px solid ${isSelected ? 'var(--c-accent2)' : 'var(--c-border)'}`,
+                        boxShadow: 'var(--shadow-subtle)',
+                        fontSize: '13px',
+                        fontWeight: isSelected ? '600' : '400',
+                        transition: 'all 0.12s ease',
+                      }}
+                    >
+                      {getCategoryIcon(c.nombre, 14, isSelected ? 'text-white' : '')}
+                      <span>{c.nombre}</span>
+                    </button>
+                  );
+                })}
+            </div>
+          </div>
         </div>
+      ) : (
+        /* FLUJO NORMAL: Gasto o Ingreso (Chips de Para quién / N1) */
+        <div style={{ width: '100%', marginBottom: '16px' }}>
+          <div
+            style={{
+              fontSize: '11px',
+              color: 'var(--c-muted)',
+              marginBottom: '8px',
+              fontWeight: '600',
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              textAlign: 'center',
+            }}
+          >
+            ¿Para quién / de dónde?
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              justifyContent: 'center',
+              gap: '8px',
+            }}
+          >
+            {categoriasN1.map((c) => {
+              const isSelected = selectedN1 === c.id;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setSelectedN1(c.id)}
+                  className="tap-active"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 16px',
+                    borderRadius: '9999px',
+                    backgroundColor: isSelected ? 'var(--c-accent)' : 'var(--c-surface)',
+                    color: isSelected ? '#FFFFFF' : 'var(--c-text)',
+                    border: `1px solid ${isSelected ? 'var(--c-accent)' : 'var(--c-border)'}`,
+                    boxShadow: 'var(--shadow-subtle)',
+                    fontSize: '14px',
+                    fontWeight: isSelected ? '600' : '400',
+                    transition: 'all 0.12s ease',
+                  }}
+                >
+                  {getCategoryIcon(c.nombre, 15, isSelected ? 'text-white' : '')}
+                  <span>{c.nombre}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* CAMPO DE DESCRIPCIÓN CORTA (Directo y visible) */}
+      <div style={{ width: '100%', maxWidth: '380px', marginBottom: '16px' }}>
         <div
           style={{
             display: 'flex',
-            flexWrap: 'wrap',
-            justifyContent: 'center',
+            alignItems: 'center',
             gap: '8px',
+            padding: '10px 14px',
+            borderRadius: '16px',
+            backgroundColor: 'var(--c-surface)',
+            border: '1px solid var(--c-border)',
+            boxShadow: 'var(--shadow-subtle)',
           }}
         >
-          {categoriasN1.map((c) => {
-            const isSelected = selectedN1 === c.id;
-            return (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => setSelectedN1(c.id)}
-                className="tap-active"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '8px 16px',
-                  borderRadius: '9999px',
-                  backgroundColor: isSelected ? 'var(--c-accent)' : 'var(--c-surface)',
-                  color: isSelected ? '#FFFFFF' : 'var(--c-text)',
-                  border: `1px solid ${isSelected ? 'var(--c-accent)' : 'var(--c-border)'}`,
-                  boxShadow: 'var(--shadow-subtle)',
-                  fontSize: '14px',
-                  fontWeight: isSelected ? '600' : '400',
-                  transition: 'all 0.12s ease',
-                }}
-              >
-                {getCategoryIcon(c.nombre, 15, isSelected ? 'text-white' : '')}
-                <span>{c.nombre}</span>
-              </button>
-            );
-          })}
+          <FileText size={16} color="var(--c-muted)" style={{ flexShrink: 0 }} />
+          <input
+            type="text"
+            maxLength={90}
+            placeholder={
+              isTransferencia
+                ? 'Motivo de la transferencia (opcional)'
+                : 'Descripción corta (ej. Almuerzo, taxi, farmacia...)'
+            }
+            value={nota}
+            onChange={(e) => setNota(e.target.value)}
+            style={{
+              border: 'none',
+              background: 'transparent',
+              fontSize: '13px',
+              outline: 'none',
+              width: '100%',
+              color: 'var(--c-text)',
+            }}
+          />
         </div>
       </div>
 
       {/* Botón "Más opciones" (colapsado por defecto) */}
-      <div style={{ width: '100%', marginBottom: '20px' }}>
+      <div style={{ width: '100%', marginBottom: '18px' }}>
         <button
           type="button"
           onClick={() => setShowMoreOptions(!showMoreOptions)}
@@ -229,13 +423,13 @@ export function RegistrarView({
             justifyContent: 'center',
             gap: '6px',
             width: '100%',
-            padding: '8px',
-            fontSize: '13px',
+            padding: '6px',
+            fontSize: '12px',
             fontWeight: '500',
             color: 'var(--c-accent2)',
           }}
         >
-          <span>{showMoreOptions ? 'Menos opciones' : 'Más opciones'}</span>
+          <span>{showMoreOptions ? 'Menos opciones' : 'Más opciones (categoría, cuenta, fecha)'}</span>
           {secondaryCount > 0 && !showMoreOptions && (
             <span
               style={{
@@ -251,7 +445,7 @@ export function RegistrarView({
               {secondaryCount}
             </span>
           )}
-          {showMoreOptions ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          {showMoreOptions ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
         </button>
 
         {/* Panel Expandible de Más Opciones */}
@@ -259,7 +453,7 @@ export function RegistrarView({
           <div
             className="animate-fade-in"
             style={{
-              marginTop: '12px',
+              marginTop: '10px',
               padding: '16px',
               backgroundColor: 'var(--c-surface)',
               borderRadius: '20px',
@@ -267,196 +461,168 @@ export function RegistrarView({
               boxShadow: 'var(--shadow-subtle)',
               display: 'flex',
               flexDirection: 'column',
-              gap: '16px',
+              gap: '14px',
             }}
           >
-            {/* Categoría Nivel 2: "¿En qué?" */}
-            <div>
-              <div
-                style={{
-                  fontSize: '12px',
-                  color: 'var(--c-muted)',
-                  marginBottom: '8px',
-                  fontWeight: '500',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.04em',
-                }}
-              >
-                ¿En qué? (Opcional)
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                <button
-                  type="button"
-                  onClick={() => setSelectedN2(null)}
-                  className="tap-active"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    padding: '6px 12px',
-                    borderRadius: '9999px',
-                    fontSize: '12px',
-                    backgroundColor: selectedN2 === null ? 'var(--c-surface-2)' : 'transparent',
-                    color: selectedN2 === null ? 'var(--c-accent)' : 'var(--c-muted)',
-                    border: '1px solid var(--c-border)',
-                  }}
-                >
-                  Sin definir
-                </button>
-                {categoriasN2.map((c) => {
-                  const isSelected = selectedN2 === c.id;
-                  return (
+            {/* Solo en Gasto e Ingreso mostramos N2 y Cuenta */}
+            {!isTransferencia && (
+              <>
+                {/* Categoría Nivel 2: "¿En qué?" */}
+                <div>
+                  <div
+                    style={{
+                      fontSize: '11px',
+                      color: 'var(--c-muted)',
+                      marginBottom: '8px',
+                      fontWeight: '600',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em',
+                    }}
+                  >
+                    ¿En qué concepto? (Nivel 2 opcional)
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                     <button
-                      key={c.id}
                       type="button"
-                      onClick={() => setSelectedN2(isSelected ? null : c.id)}
+                      onClick={() => setSelectedN2(null)}
                       className="tap-active"
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: '5px',
                         padding: '6px 12px',
                         borderRadius: '9999px',
                         fontSize: '12px',
-                        backgroundColor: isSelected ? 'var(--c-surface-2)' : 'transparent',
-                        color: isSelected ? 'var(--c-accent)' : 'var(--c-text)',
-                        border: `1px solid ${isSelected ? 'var(--c-accent2)' : 'var(--c-border)'}`,
-                        fontWeight: isSelected ? '600' : '400',
+                        backgroundColor: selectedN2 === null ? 'var(--c-surface-2)' : 'transparent',
+                        color: selectedN2 === null ? 'var(--c-accent)' : 'var(--c-muted)',
+                        border: '1px solid var(--c-border)',
                       }}
                     >
-                      {getCategoryIcon(c.nombre, 13)}
-                      <span>{c.nombre}</span>
+                      Sin definir
                     </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Cuentas */}
-            {cuentas.length > 0 && (
-              <div>
-                <div
-                  style={{
-                    fontSize: '12px',
-                    color: 'var(--c-muted)',
-                    marginBottom: '8px',
-                    fontWeight: '500',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.04em',
-                  }}
-                >
-                  Cuenta (Opcional)
+                    {categoriasN2.map((c) => {
+                      const isSelected = selectedN2 === c.id;
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => setSelectedN2(isSelected ? null : c.id)}
+                          className="tap-active"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            padding: '6px 12px',
+                            borderRadius: '9999px',
+                            fontSize: '12px',
+                            backgroundColor: isSelected ? 'var(--c-surface-2)' : 'transparent',
+                            color: isSelected ? 'var(--c-accent)' : 'var(--c-text)',
+                            border: `1px solid ${isSelected ? 'var(--c-accent2)' : 'var(--c-border)'}`,
+                            fontWeight: isSelected ? '600' : '400',
+                          }}
+                        >
+                          {getCategoryIcon(c.nombre, 13)}
+                          <span>{c.nombre}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedCuenta(null)}
-                    className="tap-active"
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      padding: '6px 12px',
-                      borderRadius: '9999px',
-                      fontSize: '12px',
-                      backgroundColor: selectedCuenta === null ? 'var(--c-surface-2)' : 'transparent',
-                      color: selectedCuenta === null ? 'var(--c-accent)' : 'var(--c-muted)',
-                      border: '1px solid var(--c-border)',
-                    }}
-                  >
-                    Sin definir
-                  </button>
-                  {cuentas.map((c) => {
-                    const isSelected = selectedCuenta === c.id;
-                    return (
+
+                {/* Cuentas */}
+                {cuentas.length > 0 && (
+                  <div>
+                    <div
+                      style={{
+                        fontSize: '11px',
+                        color: 'var(--c-muted)',
+                        marginBottom: '8px',
+                        fontWeight: '600',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.04em',
+                      }}
+                    >
+                      Cuenta (Opcional)
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                       <button
-                        key={c.id}
                         type="button"
-                        onClick={() => setSelectedCuenta(isSelected ? null : c.id)}
+                        onClick={() => setSelectedCuenta(null)}
                         className="tap-active"
                         style={{
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: '5px',
                           padding: '6px 12px',
                           borderRadius: '9999px',
                           fontSize: '12px',
-                          backgroundColor: isSelected ? 'var(--c-surface-2)' : 'transparent',
-                          color: isSelected ? 'var(--c-accent)' : 'var(--c-text)',
-                          border: `1px solid ${isSelected ? 'var(--c-accent2)' : 'var(--c-border)'}`,
-                          fontWeight: isSelected ? '600' : '400',
+                          backgroundColor: selectedCuenta === null ? 'var(--c-surface-2)' : 'transparent',
+                          color: selectedCuenta === null ? 'var(--c-accent)' : 'var(--c-muted)',
+                          border: '1px solid var(--c-border)',
                         }}
                       >
-                        {getCategoryIcon(c.tipo || c.nombre, 13)}
-                        <span>{c.nombre}</span>
+                        Sin definir
                       </button>
-                    );
-                  })}
-                </div>
-              </div>
+                      {cuentas.map((c) => {
+                        const isSelected = selectedCuenta === c.id;
+                        return (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => setSelectedCuenta(isSelected ? null : c.id)}
+                            className="tap-active"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              padding: '6px 12px',
+                              borderRadius: '9999px',
+                              fontSize: '12px',
+                              backgroundColor: isSelected ? 'var(--c-surface-2)' : 'transparent',
+                              color: isSelected ? 'var(--c-accent)' : 'var(--c-text)',
+                              border: `1px solid ${isSelected ? 'var(--c-accent2)' : 'var(--c-border)'}`,
+                              fontWeight: isSelected ? '600' : '400',
+                            }}
+                          >
+                            {getCategoryIcon(c.tipo || c.nombre, 13)}
+                            <span>{c.nombre}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
-            {/* Fecha y Nota */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <div>
-                <label style={{ fontSize: '11px', color: 'var(--c-muted)', display: 'block', marginBottom: '4px' }}>
-                  Fecha
-                </label>
-                <div
+            {/* Fecha */}
+            <div>
+              <label style={{ fontSize: '11px', color: 'var(--c-muted)', display: 'block', marginBottom: '4px' }}>
+                Fecha del movimiento
+              </label>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '8px 10px',
+                  borderRadius: '12px',
+                  border: '1px solid var(--c-border)',
+                  backgroundColor: 'var(--c-bg)',
+                  maxWidth: '220px',
+                }}
+              >
+                <Calendar size={14} color="var(--c-muted)" />
+                <input
+                  type="date"
+                  value={fecha}
+                  onChange={(e) => setFecha(e.target.value)}
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '8px 10px',
-                    borderRadius: '12px',
-                    border: '1px solid var(--c-border)',
-                    backgroundColor: 'var(--c-bg)',
+                    border: 'none',
+                    background: 'transparent',
+                    fontSize: '12px',
+                    outline: 'none',
+                    width: '100%',
                   }}
-                >
-                  <Calendar size={14} color="var(--c-muted)" />
-                  <input
-                    type="date"
-                    value={fecha}
-                    onChange={(e) => setFecha(e.target.value)}
-                    style={{
-                      border: 'none',
-                      background: 'transparent',
-                      fontSize: '12px',
-                      outline: 'none',
-                      width: '100%',
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label style={{ fontSize: '11px', color: 'var(--c-muted)', display: 'block', marginBottom: '4px' }}>
-                  Nota
-                </label>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '8px 10px',
-                    borderRadius: '12px',
-                    border: '1px solid var(--c-border)',
-                    backgroundColor: 'var(--c-bg)',
-                  }}
-                >
-                  <FileText size={14} color="var(--c-muted)" />
-                  <input
-                    type="text"
-                    placeholder="Ej. supermercado"
-                    value={nota}
-                    onChange={(e) => setNota(e.target.value)}
-                    style={{
-                      border: 'none',
-                      background: 'transparent',
-                      fontSize: '12px',
-                      outline: 'none',
-                      width: '100%',
-                    }}
-                  />
-                </div>
+                />
               </div>
             </div>
           </div>
@@ -464,11 +630,11 @@ export function RegistrarView({
       </div>
 
       {/* Teclado Numérico */}
-      <div style={{ width: '100%', marginBottom: '20px' }}>
+      <div style={{ width: '100%', marginBottom: '18px' }}>
         <Keypad value={montoStr} onChange={setMontoStr} />
       </div>
 
-      {/* Botón Guardar */}
+      {/* Botón Guardar / Transferir */}
       <button
         type="button"
         disabled={!isFormValid}
@@ -477,11 +643,11 @@ export function RegistrarView({
         style={{
           width: '100%',
           maxWidth: '380px',
-          height: '54px',
+          height: '52px',
           borderRadius: '18px',
           backgroundColor: isFormValid ? 'var(--c-accent)' : 'var(--c-surface-2)',
           color: isFormValid ? '#FFFFFF' : 'var(--c-muted)',
-          fontSize: '16px',
+          fontSize: '15px',
           fontWeight: '600',
           display: 'flex',
           alignItems: 'center',
@@ -492,7 +658,14 @@ export function RegistrarView({
           cursor: isFormValid ? 'pointer' : 'not-allowed',
         }}
       >
-        <span>Guardar</span>
+        {isTransferencia ? (
+          <>
+            <Repeat size={16} />
+            <span>Transferir</span>
+          </>
+        ) : (
+          <span>Guardar</span>
+        )}
       </button>
 
       {/* Toast de confirmación sutil */}
@@ -500,7 +673,7 @@ export function RegistrarView({
         <div
           className="animate-fade-in"
           style={{
-            marginTop: '14px',
+            marginTop: '12px',
             display: 'inline-flex',
             alignItems: 'center',
             gap: '6px',
@@ -515,7 +688,7 @@ export function RegistrarView({
           }}
         >
           <Check size={16} strokeWidth={2.5} />
-          <span>Registrado con éxito</span>
+          <span>{isTransferencia ? 'Transferencia realizada con éxito' : 'Registrado con éxito'}</span>
         </div>
       )}
     </div>

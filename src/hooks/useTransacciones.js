@@ -50,7 +50,7 @@ export function useTransacciones() {
     fetchTransacciones();
   }, [fetchTransacciones]);
 
-  // Balance general: ingresos - gastos
+  // Balance general: ingresos - (gastos + transferencias)
   const balance = useMemo(() => {
     let pen = 0;
     let usd = 0;
@@ -60,7 +60,7 @@ export function useTransacciones() {
       if (t.tipo === 'ingreso') {
         if (t.moneda === 'USD') usd += amount;
         else pen += amount;
-      } else if (t.tipo === 'gasto') {
+      } else if (t.tipo === 'gasto' || t.tipo === 'transferencia') {
         if (t.moneda === 'USD') usd -= amount;
         else pen -= amount;
       }
@@ -69,6 +69,7 @@ export function useTransacciones() {
     return { pen, usd };
   }, [transacciones]);
 
+  // Registrar transacción normal (Gasto o Ingreso)
   const addTransaccion = async ({
     monto,
     moneda = 'PEN',
@@ -137,6 +138,117 @@ export function useTransacciones() {
     return data;
   };
 
+  // Registrar Transferencia entre 2 Categorías N1
+  const addTransferencia = async ({
+    monto,
+    moneda = 'PEN',
+    origenId,
+    destinoId,
+    origenNombre = '',
+    destinoNombre = '',
+    nota = '',
+    fecha = new Date().toISOString(),
+  }) => {
+    if (!user || !monto || Number(monto) <= 0 || !origenId || !destinoId) {
+      throw new Error('Monto, categoría origen y categoría destino son obligatorios');
+    }
+
+    if (origenId === destinoId) {
+      throw new Error('La categoría de origen y destino deben ser distintas');
+    }
+
+    const cleanMonto = Number(monto);
+    const notaLimpia = nota ? nota.trim() : '';
+
+    const notaSalida = notaLimpia
+      ? `Transferencia a ${destinoNombre} — ${notaLimpia}`
+      : `Transferencia a ${destinoNombre}`;
+
+    const notaEntrada = notaLimpia
+      ? `Transferencia desde ${origenNombre} — ${notaLimpia}`
+      : `Transferencia desde ${origenNombre}`;
+
+    if (!isSupabaseConfigured) {
+      const now = Date.now();
+      const txSalida = {
+        id: 'tx-out-' + now,
+        user_id: user.id,
+        monto: cleanMonto,
+        moneda,
+        tipo: 'transferencia',
+        categoria_n1_id: origenId,
+        categoria_n2_id: null,
+        cuenta_id: null,
+        nota: notaSalida,
+        fecha,
+        created_at: new Date().toISOString(),
+      };
+
+      const txEntrada = {
+        id: 'tx-in-' + (now + 1),
+        user_id: user.id,
+        monto: cleanMonto,
+        moneda,
+        tipo: 'ingreso',
+        categoria_n1_id: destinoId,
+        categoria_n2_id: null,
+        cuenta_id: null,
+        nota: notaEntrada,
+        fecha,
+        created_at: new Date().toISOString(),
+      };
+
+      const updated = [txSalida, txEntrada, ...transacciones];
+      setTransacciones(updated);
+      localStorage.setItem(`moni_transacciones_${user.id}`, JSON.stringify(updated));
+      return [txSalida, txEntrada];
+    }
+
+    // En Supabase insertamos ambas transacciones en lote
+    const payload = [
+      {
+        user_id: user.id,
+        monto: cleanMonto,
+        moneda,
+        tipo: 'transferencia',
+        categoria_n1_id: origenId,
+        categoria_n2_id: null,
+        cuenta_id: null,
+        nota: notaSalida,
+        fecha,
+      },
+      {
+        user_id: user.id,
+        monto: cleanMonto,
+        moneda,
+        tipo: 'ingreso',
+        categoria_n1_id: destinoId,
+        categoria_n2_id: null,
+        cuenta_id: null,
+        nota: notaEntrada,
+        fecha,
+      },
+    ];
+
+    const { data, error } = await supabase
+      .from('transacciones')
+      .insert(payload)
+      .select(`
+        *,
+        categoria_n1:categorias_n1(id, nombre, color),
+        categoria_n2:categorias_n2(id, nombre, color),
+        cuenta:cuentas(id, nombre, tipo)
+      `);
+
+    if (error) {
+      console.error('Error creating transfer:', error);
+      throw error;
+    }
+
+    setTransacciones((prev) => [...(data || []), ...prev]);
+    return data;
+  };
+
   const deleteTransaccion = async (id) => {
     if (!user) return;
     if (!isSupabaseConfigured) {
@@ -157,6 +269,7 @@ export function useTransacciones() {
     loading,
     balance,
     addTransaccion,
+    addTransferencia,
     deleteTransaccion,
     refreshTransacciones: fetchTransacciones,
   };

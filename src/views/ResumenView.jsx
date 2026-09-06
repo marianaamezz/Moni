@@ -1,36 +1,38 @@
 import React, { useState, useMemo } from 'react';
 import { getCategoryIcon } from '../lib/icons';
-import { PieChart, Trash2, Calendar } from 'lucide-react';
+import { PieChart, Trash2, Calendar, FileSpreadsheet, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import { exportCategoryToExcel } from '../lib/exportExcel';
 
 const PALETTE_COLORS = [
   '#5B3765', // accent principal
   '#9E6899', // accent2
   '#D6A8C4', // accent-soft
   '#BA88AE', // income tone
-  '#7D5A86', 
-  '#9E7C97', 
-  '#B895B1', 
+  '#7D5A86',
+  '#9E7C97',
+  '#B895B1',
 ];
 
 export function ResumenView({
   transacciones,
   categoriasN1,
   categoriasN2,
+  cuentas = [],
   selectedCurrency,
   onDeleteTransaccion,
 }) {
   const [viewMode, setViewMode] = useState('n1'); // 'n1' (por destino) | 'n2' (por categoría)
 
-  // Filtrar gastos de la moneda actual
-  const gastos = useMemo(() => {
+  // Filtrar gastos y transferencias de la moneda actual
+  const gastosYTransferencias = useMemo(() => {
     return transacciones.filter(
-      (t) => t.tipo === 'gasto' && t.moneda === selectedCurrency
+      (t) => (t.tipo === 'gasto' || t.tipo === 'transferencia') && t.moneda === selectedCurrency
     );
   }, [transacciones, selectedCurrency]);
 
   const totalGastado = useMemo(() => {
-    return gastos.reduce((acc, t) => acc + (Number(t.monto) || 0), 0);
-  }, [gastos]);
+    return gastosYTransferencias.reduce((acc, t) => acc + (Number(t.monto) || 0), 0);
+  }, [gastosYTransferencias]);
 
   // Agrupar por N1 o N2
   const breakdown = useMemo(() => {
@@ -38,15 +40,17 @@ export function ResumenView({
 
     const map = new Map();
 
-    gastos.forEach((t) => {
+    gastosYTransferencias.forEach((t) => {
       let id = 'sin-definir';
       let nombre = 'Sin definir';
+      let catN1Obj = null;
 
       if (viewMode === 'n1') {
         const cat = categoriasN1.find((c) => c.id === t.categoria_n1_id);
         if (cat) {
           id = cat.id;
           nombre = cat.nombre;
+          catN1Obj = cat;
         }
       } else {
         const cat = categoriasN2.find((c) => c.id === t.categoria_n2_id);
@@ -54,11 +58,11 @@ export function ResumenView({
           id = cat.id;
           nombre = cat.nombre;
         } else {
-          nombre = 'General / Otros';
+          nombre = t.tipo === 'transferencia' ? 'Transferencias' : 'General / Otros';
         }
       }
 
-      const current = map.get(id) || { id, nombre, total: 0 };
+      const current = map.get(id) || { id, nombre, total: 0, catN1Obj };
       current.total += Number(t.monto) || 0;
       map.set(id, current);
     });
@@ -72,7 +76,7 @@ export function ResumenView({
       }));
 
     return list;
-  }, [gastos, viewMode, categoriasN1, categoriasN2, totalGastado]);
+  }, [gastosYTransferencias, viewMode, categoriasN1, categoriasN2, totalGastado]);
 
   // Cálculo de segmentos para el donut SVG
   const donutSegments = useMemo(() => {
@@ -94,6 +98,16 @@ export function ResumenView({
       };
     });
   }, [breakdown, totalGastado]);
+
+  const handleExportCategory = (catN1) => {
+    if (!catN1) return;
+    exportCategoryToExcel({
+      categoriaN1: catN1,
+      transacciones,
+      categoriasN2,
+      cuentas,
+    });
+  };
 
   return (
     <div
@@ -167,7 +181,7 @@ export function ResumenView({
             transition: 'all 0.15s ease',
           }}
         >
-          Por categoría (En qué)
+          Por concepto (En qué)
         </button>
       </div>
 
@@ -224,7 +238,7 @@ export function ResumenView({
             }}
           >
             <div style={{ fontSize: '11px', color: 'var(--c-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Total gastado
+              Total salidas
             </div>
             <div
               className="font-serif font-tabular"
@@ -255,10 +269,10 @@ export function ResumenView({
       >
         <div
           style={{
-            fontSize: '12px',
+            fontSize: '11px',
             color: 'var(--c-muted)',
             marginBottom: '16px',
-            fontWeight: '500',
+            fontWeight: '600',
             textTransform: 'uppercase',
             letterSpacing: '0.04em',
           }}
@@ -268,7 +282,7 @@ export function ResumenView({
 
         {breakdown.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '16px 0', color: 'var(--c-muted)', fontSize: '13px' }}>
-            No hay gastos registrados en esta moneda aún.
+            No hay gastos ni salidas registradas en esta moneda aún.
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -286,8 +300,8 @@ export function ResumenView({
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <div
                       style={{
-                        width: '24px',
-                        height: '24px',
+                        width: '26px',
+                        height: '26px',
                         borderRadius: '8px',
                         backgroundColor: 'var(--c-surface-2)',
                         color: item.color,
@@ -296,9 +310,35 @@ export function ResumenView({
                         justifyContent: 'center',
                       }}
                     >
-                      {getCategoryIcon(item.nombre, 13)}
+                      {getCategoryIcon(item.nombre, 14)}
                     </div>
                     <span style={{ fontWeight: '500', color: 'var(--c-text)' }}>{item.nombre}</span>
+
+                    {/* Botón rápido de exportación si estamos en vista N1 */}
+                    {viewMode === 'n1' && item.catN1Obj && (
+                      <button
+                        type="button"
+                        onClick={() => handleExportCategory(item.catN1Obj)}
+                        className="tap-active"
+                        title={`Descargar Excel de ${item.nombre}`}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                          padding: '2px 8px',
+                          borderRadius: '9999px',
+                          backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                          color: '#059669',
+                          fontSize: '11px',
+                          fontWeight: '600',
+                          border: '1px solid rgba(16, 185, 129, 0.2)',
+                          marginLeft: '4px',
+                        }}
+                      >
+                        <FileSpreadsheet size={12} />
+                        <span>Excel</span>
+                      </button>
+                    )}
                   </div>
 
                   <div className="font-tabular" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -335,7 +375,7 @@ export function ResumenView({
         )}
       </div>
 
-      {/* Historial Reciente de Transacciones */}
+      {/* Historial Reciente de Movimientos */}
       {transacciones.length > 0 && (
         <div
           style={{
@@ -348,10 +388,10 @@ export function ResumenView({
         >
           <div
             style={{
-              fontSize: '12px',
+              fontSize: '11px',
               color: 'var(--c-muted)',
               marginBottom: '14px',
-              fontWeight: '500',
+              fontWeight: '600',
               textTransform: 'uppercase',
               letterSpacing: '0.04em',
             }}
@@ -360,11 +400,29 @@ export function ResumenView({
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {transacciones.slice(0, 10).map((t) => {
+            {transacciones.slice(0, 15).map((t) => {
               const catN1 = categoriasN1.find((c) => c.id === t.categoria_n1_id);
               const catN2 = categoriasN2.find((c) => c.id === t.categoria_n2_id);
               const isGasto = t.tipo === 'gasto';
               const isIngreso = t.tipo === 'ingreso';
+              const isTransferencia = t.tipo === 'transferencia';
+
+              let sign = '- ';
+              let amountColor = 'var(--c-text)';
+              let iconBg = 'var(--c-surface-2)';
+              let iconColor = 'var(--c-accent)';
+
+              if (isIngreso) {
+                sign = '+ ';
+                amountColor = '#059669';
+                iconBg = 'rgba(16, 185, 129, 0.12)';
+                iconColor = '#059669';
+              } else if (isTransferencia) {
+                sign = '- ';
+                amountColor = 'var(--c-accent2)';
+                iconBg = 'var(--c-surface-2)';
+                iconColor = 'var(--c-accent2)';
+              }
 
               return (
                 <div
@@ -382,25 +440,36 @@ export function ResumenView({
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <div
                       style={{
-                        width: '32px',
-                        height: '32px',
+                        width: '34px',
+                        height: '34px',
                         borderRadius: '10px',
-                        backgroundColor: isIngreso ? 'rgba(186, 136, 174, 0.2)' : 'var(--c-surface-2)',
-                        color: isIngreso ? 'var(--c-income)' : 'var(--c-accent)',
+                        backgroundColor: iconBg,
+                        color: iconColor,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
+                        flexShrink: 0,
                       }}
                     >
-                      {getCategoryIcon(catN2?.nombre || catN1?.nombre || '', 15)}
+                      {isTransferencia ? (
+                        <ArrowUpRight size={16} />
+                      ) : isIngreso && !t.categoria_n2_id ? (
+                        <ArrowDownLeft size={16} />
+                      ) : (
+                        getCategoryIcon(catN2?.nombre || catN1?.nombre || '', 15)
+                      )}
                     </div>
                     <div>
                       <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--c-text)' }}>
-                        {catN1?.nombre || 'General'}
+                        {catN1?.nombre || 'Destino'}
                         {catN2 && <span style={{ color: 'var(--c-muted)', fontWeight: '400' }}> · {catN2.nombre}</span>}
                       </div>
-                      <div style={{ fontSize: '11px', color: 'var(--c-muted)' }}>
-                        {t.nota ? t.nota : new Date(t.fecha).toLocaleDateString('es-PE')}
+                      <div style={{ fontSize: '11px', color: 'var(--c-muted)', marginTop: '1px' }}>
+                        {t.nota ? (
+                          <span>{t.nota}</span>
+                        ) : (
+                          new Date(t.fecha).toLocaleDateString('es-PE')
+                        )}
                       </div>
                     </div>
                   </div>
@@ -411,10 +480,10 @@ export function ResumenView({
                       style={{
                         fontSize: '14px',
                         fontWeight: '600',
-                        color: isIngreso ? 'var(--c-income)' : 'var(--c-text)',
+                        color: amountColor,
                       }}
                     >
-                      {isIngreso ? '+ ' : '- '}
+                      {sign}
                       {t.moneda === 'USD' ? '$' : 'S/'} {Number(t.monto).toFixed(2)}
                     </span>
                     <button

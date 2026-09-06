@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { Plus, X, Tag, Landmark, Users } from 'lucide-react';
+import { Plus, X, Tag, Landmark, Users, FileSpreadsheet, Download } from 'lucide-react';
 import { getCategoryIcon } from '../lib/icons';
+import { exportCategoryToExcel } from '../lib/exportExcel';
 
 export function CategoriasView({
   categoriasN1,
   categoriasN2,
   cuentas,
+  transacciones = [],
   onAddN1,
   onDeleteN1,
   onAddN2,
@@ -32,6 +34,15 @@ export function CategoriasView({
     setNuevoNombre('');
   };
 
+  const handleExportN1 = (catN1) => {
+    exportCategoryToExcel({
+      categoriaN1: catN1,
+      transacciones,
+      categoriasN2,
+      cuentas,
+    });
+  };
+
   return (
     <div
       style={{
@@ -55,7 +66,7 @@ export function CategoriasView({
           Categorías y Cuentas
         </h2>
         <p style={{ fontSize: '13px', color: 'var(--c-muted)', marginTop: '2px' }}>
-          Personaliza tus listas a tu propio ritmo
+          Personaliza tus listas y descarga tus reportes en Excel
         </p>
       </div>
 
@@ -66,7 +77,7 @@ export function CategoriasView({
           backgroundColor: 'var(--c-surface-2)',
           borderRadius: '9999px',
           padding: '4px',
-          marginBottom: '24px',
+          marginBottom: '22px',
           border: '1px solid var(--c-border)',
         }}
       >
@@ -109,7 +120,7 @@ export function CategoriasView({
         })}
       </div>
 
-      {/* Formulario para agregar */}
+      {/* Formulario para agregar nuevo elemento */}
       <form
         onSubmit={handleAdd}
         style={{
@@ -127,7 +138,7 @@ export function CategoriasView({
           type="text"
           placeholder={
             activeSubTab === 'n1'
-              ? 'Ej. Negocio, Pareja, Mascota...'
+              ? 'Ej. Negocio, Hijos, Mascota...'
               : activeSubTab === 'n2'
               ? 'Ej. Farmacia, Libros, Regalos...'
               : 'Ej. BCP Débito, Efectivo...'
@@ -183,67 +194,121 @@ export function CategoriasView({
         </button>
       </form>
 
-      {/* Listado de Chips Editables con Ícono Automático y botón X */}
+      {/* CONTENIDO SEGÚN SUBTAB */}
       <div>
         <div
           style={{
-            fontSize: '12px',
+            fontSize: '11px',
             color: 'var(--c-muted)',
             marginBottom: '12px',
-            fontWeight: '500',
+            fontWeight: '600',
             textTransform: 'uppercase',
             letterSpacing: '0.04em',
           }}
         >
           {activeSubTab === 'n1'
-            ? 'Destinos registrados'
+            ? 'Destinos (Para quién) y Descarga Excel'
             : activeSubTab === 'n2'
-            ? 'Conceptos registrados'
+            ? 'Conceptos de gasto (En qué)'
             : 'Cuentas registradas'}
         </div>
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-          {activeSubTab === 'n1' &&
-            categoriasN1.map((item) => (
-              <div
-                key={item.id}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '8px 14px',
-                  borderRadius: '9999px',
-                  backgroundColor: 'var(--c-surface)',
-                  border: '1px solid var(--c-border)',
-                  boxShadow: 'var(--shadow-subtle)',
-                  color: 'var(--c-text)',
-                  fontSize: '14px',
-                }}
-              >
-                {getCategoryIcon(item.nombre, 15)}
-                <span style={{ fontWeight: '500' }}>{item.nombre}</span>
-                {categoriasN1.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => onDeleteN1(item.id)}
-                    className="tap-active"
-                    title={`Eliminar ${item.nombre}`}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      color: 'var(--c-muted)',
-                      padding: '2px',
-                      marginLeft: '2px',
-                    }}
-                  >
-                    <X size={14} />
-                  </button>
-                )}
-              </div>
-            ))}
+        {/* N1 con botón de Descarga Excel individual */}
+        {activeSubTab === 'n1' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {categoriasN1.map((item) => {
+              const txCount = transacciones.filter((t) => t.categoria_n1_id === item.id).length;
 
-          {activeSubTab === 'n2' &&
-            categoriasN2.map((item) => (
+              return (
+                <div
+                  key={item.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 16px',
+                    borderRadius: '18px',
+                    backgroundColor: 'var(--c-surface)',
+                    border: '1px solid var(--c-border)',
+                    boxShadow: 'var(--shadow-subtle)',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div
+                      style={{
+                        width: '36px',
+                        height: '36px',
+                        borderRadius: '12px',
+                        backgroundColor: 'var(--c-surface-2)',
+                        color: 'var(--c-accent)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      {getCategoryIcon(item.nombre, 18)}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '15px', fontWeight: '600', color: 'var(--c-text)' }}>
+                        {item.nombre}
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--c-muted)' }}>
+                        {txCount} {txCount === 1 ? 'movimiento' : 'movimientos'}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {/* Botón Descargar Excel para esta categoría */}
+                    <button
+                      type="button"
+                      onClick={() => handleExportN1(item)}
+                      className="tap-active"
+                      title={`Descargar Excel de ${item.nombre}`}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '6px 12px',
+                        borderRadius: '9999px',
+                        backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                        color: '#059669',
+                        border: '1px solid rgba(16, 185, 129, 0.2)',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                      }}
+                    >
+                      <FileSpreadsheet size={15} />
+                      <span>Excel</span>
+                    </button>
+
+                    {/* Botón Eliminar si hay más de 1 categoría */}
+                    {categoriasN1.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => onDeleteN1(item.id)}
+                        className="tap-active"
+                        title={`Eliminar ${item.nombre}`}
+                        style={{
+                          color: 'var(--c-muted)',
+                          padding: '6px',
+                          borderRadius: '8px',
+                        }}
+                      >
+                        <X size={16} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* N2: Chips tradicionales con X */}
+        {activeSubTab === 'n2' && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            {categoriasN2.map((item) => (
               <div
                 key={item.id}
                 style={{
@@ -278,9 +343,13 @@ export function CategoriasView({
                 </button>
               </div>
             ))}
+          </div>
+        )}
 
-          {activeSubTab === 'cuentas' &&
-            cuentas.map((item) => (
+        {/* Cuentas */}
+        {activeSubTab === 'cuentas' && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            {cuentas.map((item) => (
               <div
                 key={item.id}
                 style={{
@@ -318,7 +387,8 @@ export function CategoriasView({
                 </button>
               </div>
             ))}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

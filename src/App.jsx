@@ -32,6 +32,7 @@ function MainApp() {
     transacciones,
     balance,
     addTransaccion,
+    addTransferencia,
     deleteTransaccion,
   } = useTransacciones();
 
@@ -111,6 +112,7 @@ function MainApp() {
             categoriasN2={categoriasN2}
             cuentas={cuentas}
             onSaveTransaccion={addTransaccion}
+            onSaveTransferencia={addTransferencia}
             selectedCurrency={selectedCurrency}
             onToggleCurrency={toggleCurrency}
           />
@@ -132,6 +134,7 @@ function MainApp() {
             categoriasN1={categoriasN1}
             categoriasN2={categoriasN2}
             cuentas={cuentas}
+            transacciones={transacciones}
             onAddN1={addCategoriaN1}
             onDeleteN1={deleteCategoriaN1}
             onAddN2={addCategoriaN2}
@@ -146,6 +149,7 @@ function MainApp() {
             transacciones={transacciones}
             categoriasN1={categoriasN1}
             categoriasN2={categoriasN2}
+            cuentas={cuentas}
             selectedCurrency={selectedCurrency}
             onDeleteTransaccion={deleteTransaccion}
           />
