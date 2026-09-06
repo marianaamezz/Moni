@@ -9,58 +9,68 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!isSupabaseConfigured) {
-      const savedUser = localStorage.getItem('moni_local_user');
-      const fallbackUser = savedUser
-        ? JSON.parse(savedUser)
-        : { id: 'local-user-id', email: 'mama@moni.app', user_metadata: { name: 'Mamá' } };
-      setUser(fallbackUser);
+    // Limpieza de cualquier residuo previo de prueba en localStorage
+    localStorage.removeItem('moni_local_user');
+    localStorage.removeItem('nanay_local_user');
+
+    if (!supabase) {
       setLoading(false);
       return;
     }
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    // 1. Escuchar cambios de sesión en tiempo real (login, logout, refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+      setUser(newSession?.user ?? null);
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    // 2. Comprobar si ya existe una sesión guardada y válida en Supabase
+    supabase.auth.getSession().then(({ data: { session: initialSession }, error }) => {
+      if (error) {
+        console.error('Error al obtener sesión de Supabase:', error);
+      }
+      setSession(initialSession);
+      setUser(initialSession?.user ?? null);
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription?.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email, password) => {
-    if (!isSupabaseConfigured) {
-      const demoUser = { id: 'local-user-id', email, user_metadata: { name: email.split('@')[0] } };
-      localStorage.setItem('moni_local_user', JSON.stringify(demoUser));
-      setUser(demoUser);
-      return { data: { user: demoUser }, error: null };
+    if (!supabase) throw new Error('Supabase no está configurado');
+    const res = await supabase.auth.signInWithPassword({ email, password });
+    if (res.data?.user) {
+      setUser(res.data.user);
+      setSession(res.data.session);
     }
-    return await supabase.auth.signInWithPassword({ email, password });
+    return res;
   };
 
   const signUp = async (email, password) => {
-    if (!isSupabaseConfigured) {
-      const demoUser = { id: 'local-user-id', email, user_metadata: { name: email.split('@')[0] } };
-      localStorage.setItem('moni_local_user', JSON.stringify(demoUser));
-      setUser(demoUser);
-      return { data: { user: demoUser }, error: null };
+    if (!supabase) throw new Error('Supabase no está configurado');
+    const res = await supabase.auth.signUp({ email, password });
+    if (res.data?.session?.user) {
+      setUser(res.data.session.user);
+      setSession(res.data.session);
     }
-    return await supabase.auth.signUp({ email, password });
+    return res;
   };
 
   const signOut = async () => {
-    if (!isSupabaseConfigured) {
+    try {
       setUser(null);
-      localStorage.removeItem('moni_local_user');
-      return { error: null };
+      setSession(null);
+      if (supabase) {
+        await supabase.auth.signOut();
+      }
+    } catch (err) {
+      console.error('Error al cerrar sesión:', err);
     }
-    return await supabase.auth.signOut();
+    return { error: null };
   };
 
   return (
