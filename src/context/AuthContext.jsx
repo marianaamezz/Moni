@@ -10,17 +10,15 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
-      // Modo local / demo para poder probar inmediatamente
-      const savedUser = localStorage.getItem('nanay_local_user');
+      const savedUser = localStorage.getItem('moni_local_user');
       const fallbackUser = savedUser
         ? JSON.parse(savedUser)
-        : { id: 'local-user-id', email: 'mama@nanay.app', user_metadata: { name: 'Mamá' } };
+        : { id: 'local-user-id', email: 'mama@moni.app', user_metadata: { name: 'Mamá' } };
       setUser(fallbackUser);
       setLoading(false);
       return;
     }
 
-    // Si Supabase está configurado, obtenemos la sesión real
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -39,7 +37,7 @@ export function AuthProvider({ children }) {
   const signIn = async (email, password) => {
     if (!isSupabaseConfigured) {
       const demoUser = { id: 'local-user-id', email, user_metadata: { name: email.split('@')[0] } };
-      localStorage.setItem('nanay_local_user', JSON.stringify(demoUser));
+      localStorage.setItem('moni_local_user', JSON.stringify(demoUser));
       setUser(demoUser);
       return { data: { user: demoUser }, error: null };
     }
@@ -49,7 +47,7 @@ export function AuthProvider({ children }) {
   const signUp = async (email, password) => {
     if (!isSupabaseConfigured) {
       const demoUser = { id: 'local-user-id', email, user_metadata: { name: email.split('@')[0] } };
-      localStorage.setItem('nanay_local_user', JSON.stringify(demoUser));
+      localStorage.setItem('moni_local_user', JSON.stringify(demoUser));
       setUser(demoUser);
       return { data: { user: demoUser }, error: null };
     }
@@ -59,7 +57,7 @@ export function AuthProvider({ children }) {
   const signOut = async () => {
     if (!isSupabaseConfigured) {
       setUser(null);
-      localStorage.removeItem('nanay_local_user');
+      localStorage.removeItem('moni_local_user');
       return { error: null };
     }
     return await supabase.auth.signOut();

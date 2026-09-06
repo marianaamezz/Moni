@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
-import { User, ShieldCheck, Sparkles } from 'lucide-react';
+import { User } from 'lucide-react';
 
 export function Header({ balance, selectedCurrency = 'PEN', onToggleCurrency, onOpenAuth }) {
   const { user, isSupabaseConfigured } = useAuth();
@@ -21,7 +21,7 @@ export function Header({ balance, selectedCurrency = 'PEN', onToggleCurrency, on
         zIndex: 40,
       }}
     >
-      {/* Badge de Marca */}
+      {/* Badge de Marca: Moni */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <div
           style={{
@@ -38,7 +38,7 @@ export function Header({ balance, selectedCurrency = 'PEN', onToggleCurrency, on
             fontSize: '17px',
           }}
         >
-          Ñ
+          M
         </div>
         <div>
           <h1
@@ -51,7 +51,7 @@ export function Header({ balance, selectedCurrency = 'PEN', onToggleCurrency, on
               lineHeight: 1.1,
             }}
           >
-            Ñañay
+            Moni
           </h1>
           <span
             style={{

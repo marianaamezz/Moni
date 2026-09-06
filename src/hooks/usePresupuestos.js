@@ -15,7 +15,7 @@ export function usePresupuestos(transacciones = []) {
     }
 
     if (!isSupabaseConfigured) {
-      const stored = localStorage.getItem(`nanay_presupuestos_${user.id}`);
+      const stored = localStorage.getItem(`moni_presupuestos_${user.id}`);
       if (stored) {
         setPresupuestos(JSON.parse(stored));
       } else {
@@ -123,7 +123,7 @@ export function usePresupuestos(transacciones = []) {
       };
       const updated = [newItem, ...presupuestos];
       setPresupuestos(updated);
-      localStorage.setItem(`nanay_presupuestos_${user.id}`, JSON.stringify(updated));
+      localStorage.setItem(`moni_presupuestos_${user.id}`, JSON.stringify(updated));
       return newItem;
     }
 
@@ -157,7 +157,7 @@ export function usePresupuestos(transacciones = []) {
     if (!isSupabaseConfigured) {
       const updated = presupuestos.filter((p) => p.id !== id);
       setPresupuestos(updated);
-      localStorage.setItem(`nanay_presupuestos_${user.id}`, JSON.stringify(updated));
+      localStorage.setItem(`moni_presupuestos_${user.id}`, JSON.stringify(updated));
       return;
     }
 

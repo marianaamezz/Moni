@@ -20,11 +20,11 @@ export function useCuentas() {
     }
 
     if (!isSupabaseConfigured) {
-      const stored = localStorage.getItem(`nanay_cuentas_${user.id}`);
+      const stored = localStorage.getItem(`moni_cuentas_${user.id}`);
       if (stored) {
         setCuentas(JSON.parse(stored));
       } else {
-        localStorage.setItem(`nanay_cuentas_${user.id}`, JSON.stringify(DEFAULT_CUENTAS));
+        localStorage.setItem(`moni_cuentas_${user.id}`, JSON.stringify(DEFAULT_CUENTAS));
         setCuentas(DEFAULT_CUENTAS);
       }
       setLoading(false);
@@ -65,7 +65,7 @@ export function useCuentas() {
       };
       const updated = [...cuentas, newItem];
       setCuentas(updated);
-      localStorage.setItem(`nanay_cuentas_${user.id}`, JSON.stringify(updated));
+      localStorage.setItem(`moni_cuentas_${user.id}`, JSON.stringify(updated));
       return newItem;
     }
 
@@ -94,7 +94,7 @@ export function useCuentas() {
     if (!isSupabaseConfigured) {
       const updated = cuentas.filter((c) => c.id !== id);
       setCuentas(updated);
-      localStorage.setItem(`nanay_cuentas_${user.id}`, JSON.stringify(updated));
+      localStorage.setItem(`moni_cuentas_${user.id}`, JSON.stringify(updated));
       return;
     }
 

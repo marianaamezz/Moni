@@ -34,20 +34,20 @@ export function useCategorias() {
     }
 
     if (!isSupabaseConfigured) {
-      const storedN1 = localStorage.getItem(`nanay_n1_${user.id}`);
-      const storedN2 = localStorage.getItem(`nanay_n2_${user.id}`);
+      const storedN1 = localStorage.getItem(`moni_n1_${user.id}`);
+      const storedN2 = localStorage.getItem(`moni_n2_${user.id}`);
 
       if (storedN1) {
         setCategoriasN1(JSON.parse(storedN1));
       } else {
-        localStorage.setItem(`nanay_n1_${user.id}`, JSON.stringify(DEFAULT_N1));
+        localStorage.setItem(`moni_n1_${user.id}`, JSON.stringify(DEFAULT_N1));
         setCategoriasN1(DEFAULT_N1);
       }
 
       if (storedN2) {
         setCategoriasN2(JSON.parse(storedN2));
       } else {
-        localStorage.setItem(`nanay_n2_${user.id}`, JSON.stringify(DEFAULT_N2));
+        localStorage.setItem(`moni_n2_${user.id}`, JSON.stringify(DEFAULT_N2));
         setCategoriasN2(DEFAULT_N2);
       }
       setLoading(false);
@@ -116,7 +116,7 @@ export function useCategorias() {
       const newItem = { id: 'n1-' + Date.now(), nombre: cleanName, color };
       const updated = [...categoriasN1, newItem];
       setCategoriasN1(updated);
-      localStorage.setItem(`nanay_n1_${user.id}`, JSON.stringify(updated));
+      localStorage.setItem(`moni_n1_${user.id}`, JSON.stringify(updated));
       return newItem;
     }
 
@@ -138,7 +138,7 @@ export function useCategorias() {
     if (!isSupabaseConfigured) {
       const updated = categoriasN1.filter((c) => c.id !== id);
       setCategoriasN1(updated);
-      localStorage.setItem(`nanay_n1_${user.id}`, JSON.stringify(updated));
+      localStorage.setItem(`moni_n1_${user.id}`, JSON.stringify(updated));
       return;
     }
 
@@ -157,7 +157,7 @@ export function useCategorias() {
       const newItem = { id: 'n2-' + Date.now(), nombre: cleanName, color };
       const updated = [...categoriasN2, newItem];
       setCategoriasN2(updated);
-      localStorage.setItem(`nanay_n2_${user.id}`, JSON.stringify(updated));
+      localStorage.setItem(`moni_n2_${user.id}`, JSON.stringify(updated));
       return newItem;
     }
 
@@ -179,7 +179,7 @@ export function useCategorias() {
     if (!isSupabaseConfigured) {
       const updated = categoriasN2.filter((c) => c.id !== id);
       setCategoriasN2(updated);
-      localStorage.setItem(`nanay_n2_${user.id}`, JSON.stringify(updated));
+      localStorage.setItem(`moni_n2_${user.id}`, JSON.stringify(updated));
       return;
     }
 

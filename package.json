@@ -1,11 +1,11 @@
 {
-  "name": "nanay-finanzas",
+  "name": "moni-finanzas",
   "private": true,
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "vite src/template.html",
+    "build": "vite build && cp dist/src/template.html ./index.html && cp dist/src/template.html ./dist/index.html",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -16,6 +16,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",
-    "vite": "^5.4.2"
+    "vite": "^5.4.2",
+    "vite-plugin-singlefile": "^2.0.3"
   }
 }

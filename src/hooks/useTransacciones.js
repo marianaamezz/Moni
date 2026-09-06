@@ -15,7 +15,7 @@ export function useTransacciones() {
     }
 
     if (!isSupabaseConfigured) {
-      const stored = localStorage.getItem(`nanay_transacciones_${user.id}`);
+      const stored = localStorage.getItem(`moni_transacciones_${user.id}`);
       if (stored) {
         setTransacciones(JSON.parse(stored));
       } else {
@@ -101,7 +101,7 @@ export function useTransacciones() {
       };
       const updated = [newItem, ...transacciones];
       setTransacciones(updated);
-      localStorage.setItem(`nanay_transacciones_${user.id}`, JSON.stringify(updated));
+      localStorage.setItem(`moni_transacciones_${user.id}`, JSON.stringify(updated));
       return newItem;
     }
 
@@ -142,7 +142,7 @@ export function useTransacciones() {
     if (!isSupabaseConfigured) {
       const updated = transacciones.filter((t) => t.id !== id);
       setTransacciones(updated);
-      localStorage.setItem(`nanay_transacciones_${user.id}`, JSON.stringify(updated));
+      localStorage.setItem(`moni_transacciones_${user.id}`, JSON.stringify(updated));
       return;
     }
 
