@@ -142,6 +142,7 @@ function MainApp() {
             onDeleteN2={deleteCategoriaN2}
             onAddCuenta={addCuenta}
             onDeleteCuenta={deleteCuenta}
+            onDeleteTransaccion={deleteTransaccion}
           />
         )}
 

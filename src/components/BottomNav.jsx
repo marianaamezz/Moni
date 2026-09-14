@@ -1,16 +1,17 @@
 import React from 'react';
-import { PlusCircle, Target, Tag, PieChart } from 'lucide-react';
+import { PlusCircle, Target, Landmark, PieChart } from 'lucide-react';
 
 export function BottomNav({ activeTab, onSelectTab }) {
   const tabs = [
     { id: 'registrar', label: 'Registrar', icon: PlusCircle },
     { id: 'presupuestos', label: 'Presupuestos', icon: Target },
-    { id: 'categorias', label: 'Categorías', icon: Tag },
+    { id: 'categorias', label: 'Cuentas', icon: Landmark },
     { id: 'resumen', label: 'Resumen', icon: PieChart },
   ];
 
   return (
     <nav
+      className="no-print"
       style={{
         position: 'fixed',
         bottom: 0,

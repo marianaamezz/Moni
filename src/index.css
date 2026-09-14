@@ -91,3 +91,34 @@ input, select, textarea {
   transform: scale(0.96);
   transition: transform 0.08s ease;
 }
+
+/* ==============================================================================
+   Estilos de Impresión / Exportación a PDF
+   ============================================================================== */
+@media print {
+  body, html {
+    background: #FFFFFF !important;
+    color: #1F1F1F !important;
+    font-size: 12pt !important;
+  }
+
+  header, nav, .no-print, .modal-backdrop::before {
+    display: none !important;
+  }
+
+  .modal-backdrop {
+    position: static !important;
+    background: transparent !important;
+    padding: 0 !important;
+    display: block !important;
+  }
+
+  .printable-report {
+    max-width: 100% !important;
+    max-height: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+}

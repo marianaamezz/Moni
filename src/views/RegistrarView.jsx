@@ -217,7 +217,7 @@ export function RegistrarView({
                 textAlign: 'center',
               }}
             >
-              ¿Desde dónde se envía? (Origen)
+              ¿Desde qué cuenta se envía? (Origen)
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px' }}>
               {categoriasN1.map((c) => {
@@ -282,7 +282,7 @@ export function RegistrarView({
                 textAlign: 'center',
               }}
             >
-              ¿Hacia dónde se transfiere? (Destino)
+              ¿Hacia qué cuenta se transfiere? (Destino)
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px' }}>
               {categoriasN1
@@ -332,7 +332,7 @@ export function RegistrarView({
               textAlign: 'center',
             }}
           >
-            ¿Para quién / de dónde?
+            ¿En qué cuenta?
           </div>
           <div
             style={{

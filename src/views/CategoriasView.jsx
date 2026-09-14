@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Plus, X, Tag, Landmark, Users, FileSpreadsheet } from 'lucide-react';
+import { Plus, X, Tag, Landmark, Users, FileText, ChevronRight } from 'lucide-react';
 import { getCategoryIcon } from '../lib/icons';
-import { exportCategoryToExcel } from '../lib/exportExcel';
+import { ReportePreviewModal } from '../components/ReportePreviewModal';
+import { CuentaDetalleModal } from '../components/CuentaDetalleModal';
 
 export function CategoriasView({
   categoriasN1,
@@ -15,10 +16,15 @@ export function CategoriasView({
   onDeleteN2,
   onAddCuenta,
   onDeleteCuenta,
+  onDeleteTransaccion,
 }) {
-  const [activeSubTab, setActiveSubTab] = useState('n1'); // 'n1' | 'n2' | 'cuentas'
+  const [activeSubTab, setActiveSubTab] = useState('n1'); // 'n1' (Cuentas) | 'n2' (Conceptos) | 'cuentas' (Métodos de pago)
   const [nuevoNombre, setNuevoNombre] = useState('');
   const [nuevoTipoCuenta, setNuevoTipoCuenta] = useState('débito');
+
+  // Modales
+  const [selectedCuentaParaReporte, setSelectedCuentaParaReporte] = useState(null);
+  const [selectedCuentaParaDetalle, setSelectedCuentaParaDetalle] = useState(null);
 
   const handleAdd = (e) => {
     e.preventDefault();
@@ -35,16 +41,7 @@ export function CategoriasView({
     setNuevoNombre('');
   };
 
-  const handleExportN1 = (catN1) => {
-    exportCategoryToExcel({
-      categoriaN1: catN1,
-      transacciones,
-      categoriasN2,
-      cuentas,
-    });
-  };
-
-  // Calcular balance de una categoría N1 (Ingresos - Egresos)
+  // Calcular balance de una cuenta N1 (Ingresos - Egresos)
   const getCategoryBalance = (catId) => {
     let pen = 0;
     let usd = 0;
@@ -58,11 +55,11 @@ export function CategoriasView({
       const isUSD = t.moneda === 'USD';
 
       if (t.tipo === 'ingreso') {
-        totalIngresos++;
+        totalIngresos += monto;
         if (isUSD) usd += monto;
         else pen += monto;
       } else if (t.tipo === 'gasto' || t.tipo === 'transferencia') {
-        totalEgresos++;
+        totalEgresos += monto;
         if (isUSD) usd -= monto;
         else pen -= monto;
       }
@@ -100,10 +97,10 @@ export function CategoriasView({
             lineHeight: 1.2,
           }}
         >
-          Categorías y Cuentas
+          Cuentas
         </h2>
         <p style={{ fontSize: '13px', color: 'var(--c-muted)', marginTop: '2px' }}>
-          Balances en vivo por categoría y descargas en Excel
+          Toca cualquier cuenta para ver sus movimientos y generar reportes
         </p>
       </div>
 
@@ -119,9 +116,9 @@ export function CategoriasView({
         }}
       >
         {[
-          { id: 'n1', label: 'Para quién (N1)', icon: Users },
-          { id: 'n2', label: 'En qué (N2)', icon: Tag },
-          { id: 'cuentas', label: 'Cuentas', icon: Landmark },
+          { id: 'n1', label: 'Cuentas principales', icon: Landmark },
+          { id: 'n2', label: 'Conceptos de gasto', icon: Tag },
+          { id: 'cuentas', label: 'Métodos de pago', icon: Users },
         ].map((tab) => {
           const isActive = activeSubTab === tab.id;
           const Icon = tab.icon;
@@ -175,7 +172,7 @@ export function CategoriasView({
           type="text"
           placeholder={
             activeSubTab === 'n1'
-              ? 'Ej. Negocio, Hijos, Mascota...'
+              ? 'Ej. Yo, Casa, Negocio, Ahorros...'
               : activeSubTab === 'n2'
               ? 'Ej. Farmacia, Libros, Regalos...'
               : 'Ej. BCP Débito, Efectivo...'
@@ -244,13 +241,13 @@ export function CategoriasView({
           }}
         >
           {activeSubTab === 'n1'
-            ? 'Destinos (Para quién), Balances y Descarga Excel'
+            ? 'Cuentas y sus saldos (Toca una cuenta para ver sus movimientos)'
             : activeSubTab === 'n2'
-            ? 'Conceptos de gasto (En qué)'
-            : 'Cuentas registradas'}
+            ? 'Conceptos de gasto'
+            : 'Métodos de pago registrados'}
         </div>
 
-        {/* N1 con Balance al lado del nombre y botón de Descarga Excel */}
+        {/* Cuentas N1 con Balance, clic para ver movimientos y botón Reporte / PDF */}
         {activeSubTab === 'n1' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {categoriasN1.map((item) => {
@@ -272,12 +269,24 @@ export function CategoriasView({
                     boxShadow: 'var(--shadow-subtle)',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  {/* Zona Clickeable para abrir el detalle con todos los movimientos */}
+                  <div
+                    onClick={() => setSelectedCuentaParaDetalle(item)}
+                    className="tap-active"
+                    title={`Toca para ver todos los movimientos de la cuenta ${item.nombre}`}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      cursor: 'pointer',
+                      flex: 1,
+                    }}
+                  >
                     <div
                       style={{
-                        width: '38px',
-                        height: '38px',
-                        borderRadius: '12px',
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '14px',
                         backgroundColor: 'var(--c-surface-2)',
                         color: 'var(--c-accent)',
                         display: 'flex',
@@ -291,7 +300,14 @@ export function CategoriasView({
                     <div>
                       {/* Nombre y Balance al lado */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: '15px', fontWeight: '600', color: 'var(--c-text)' }}>
+                        <span
+                          style={{
+                            fontSize: '15px',
+                            fontWeight: '600',
+                            color: 'var(--c-text)',
+                            textDecoration: 'none',
+                          }}
+                        >
                           {item.nombre}
                         </span>
 
@@ -320,35 +336,48 @@ export function CategoriasView({
                         </span>
                       </div>
 
-                      {/* Movimientos */}
-                      <div style={{ fontSize: '12px', color: 'var(--c-muted)', marginTop: '2px' }}>
-                        {totalCount} {totalCount === 1 ? 'movimiento' : 'movimientos'}
+                      {/* Movimientos e indicación de tocar */}
+                      <div
+                        style={{
+                          fontSize: '12px',
+                          color: 'var(--c-muted)',
+                          marginTop: '2px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        <span>{totalCount} {totalCount === 1 ? 'movimiento' : 'movimientos'}</span>
+                        <span>·</span>
+                        <span style={{ color: 'var(--c-accent2)', fontWeight: '500' }}>Ver movimientos</span>
+                        <ChevronRight size={13} color="var(--c-accent2)" />
                       </div>
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    {/* Botón Descargar Excel para esta categoría */}
+                  {/* Botones de acción derecha */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '10px' }}>
+                    {/* Botón Reporte / PDF Preview directo */}
                     <button
                       type="button"
-                      onClick={() => handleExportN1(item)}
+                      onClick={() => setSelectedCuentaParaReporte(item)}
                       className="tap-active"
-                      title={`Descargar Excel de ${item.nombre} con balance`}
+                      title={`Ver reporte y PDF de ${item.nombre}`}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '6px',
+                        gap: '5px',
                         padding: '6px 12px',
                         borderRadius: '9999px',
-                        backgroundColor: 'rgba(16, 185, 129, 0.08)',
-                        color: '#059669',
-                        border: '1px solid rgba(16, 185, 129, 0.2)',
+                        backgroundColor: 'var(--c-surface-2)',
+                        color: 'var(--c-accent)',
+                        border: '1px solid var(--c-border)',
                         fontSize: '12px',
                         fontWeight: '600',
                       }}
                     >
-                      <FileSpreadsheet size={15} />
-                      <span>Excel</span>
+                      <FileText size={14} />
+                      <span>Reporte PDF</span>
                     </button>
 
                     {/* Botón Eliminar si hay más de 1 categoría */}
@@ -357,7 +386,7 @@ export function CategoriasView({
                         type="button"
                         onClick={() => onDeleteN1(item.id)}
                         className="tap-active"
-                        title={`Eliminar ${item.nombre}`}
+                        title={`Eliminar cuenta ${item.nombre}`}
                         style={{
                           color: 'var(--c-muted)',
                           padding: '6px',
@@ -415,7 +444,7 @@ export function CategoriasView({
           </div>
         )}
 
-        {/* Cuentas */}
+        {/* Métodos de Pago */}
         {activeSubTab === 'cuentas' && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
             {cuentas.map((item) => (
@@ -459,6 +488,29 @@ export function CategoriasView({
           </div>
         )}
       </div>
+
+      {/* Modal 1: Reporte y Preview PDF */}
+      <ReportePreviewModal
+        isOpen={Boolean(selectedCuentaParaReporte)}
+        onClose={() => setSelectedCuentaParaReporte(null)}
+        categoriaN1={selectedCuentaParaReporte}
+        transacciones={transacciones}
+        categoriasN2={categoriasN2}
+        cuentas={cuentas}
+        selectedCurrency={selectedCurrency}
+      />
+
+      {/* Modal 2: Detalle de Movimientos de la Cuenta */}
+      <CuentaDetalleModal
+        isOpen={Boolean(selectedCuentaParaDetalle)}
+        onClose={() => setSelectedCuentaParaDetalle(null)}
+        categoriaN1={selectedCuentaParaDetalle}
+        transacciones={transacciones}
+        categoriasN2={categoriasN2}
+        selectedCurrency={selectedCurrency}
+        onDeleteTransaccion={onDeleteTransaccion}
+        onOpenReporte={(cat) => setSelectedCuentaParaReporte(cat)}
+      />
     </div>
   );
 }
