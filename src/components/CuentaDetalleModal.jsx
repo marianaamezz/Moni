@@ -1,5 +1,5 @@
-import React from 'react';
-import { X, Trash2, ArrowUpRight, ArrowDownLeft, FileText, Printer } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Trash2, ArrowUpRight, ArrowDownLeft, FileText, Printer, Calendar, ChevronDown, ChevronUp } from 'lucide-react';
 import { getCategoryIcon } from '../lib/icons';
 
 export function CuentaDetalleModal({
@@ -8,10 +8,12 @@ export function CuentaDetalleModal({
   categoriaN1,
   transacciones = [],
   categoriasN2 = [],
+  cuentas = [],
   selectedCurrency = 'PEN',
   onDeleteTransaccion,
   onOpenReporte,
 }) {
+  const [expandedTxId, setExpandedTxId] = useState(null);
   if (!isOpen || !categoriaN1) return null;
 
   // Filtrar todos los movimientos de esta cuenta
@@ -218,6 +220,9 @@ export function CuentaDetalleModal({
             }}
           >
             Historial de esta cuenta
+            <span style={{ fontSize: '10px', color: 'var(--c-muted)', fontWeight: 'normal', marginLeft: '6px', textTransform: 'none' }}>
+              (Toca un movimiento para ver detalles y fecha completa)
+            </span>
           </div>
 
           {movimientos.length === 0 ? (
@@ -235,8 +240,10 @@ export function CuentaDetalleModal({
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {movimientos.map((t) => {
                 const catN2 = categoriasN2.find((c) => c.id === t.categoria_n2_id);
+                const cta = cuentas?.find((c) => c.id === t.cuenta_id);
                 const isIngreso = t.tipo === 'ingreso';
                 const isTransf = t.tipo === 'transferencia';
+                const isExpanded = expandedTxId === t.id;
 
                 let sign = '- ';
                 let amountColor = 'var(--c-text)';
@@ -255,77 +262,199 @@ export function CuentaDetalleModal({
                   iconColor = 'var(--c-accent2)';
                 }
 
+                // Formateo seguro de fecha
+                const fechaObj = t.fecha ? new Date(t.fecha) : null;
+                const isValidDate = fechaObj && !isNaN(fechaObj.getTime());
+                const fechaCorta = isValidDate
+                  ? fechaObj.toLocaleDateString('es-PE', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                    })
+                  : 'Sin fecha';
+                const fechaCompleta = isValidDate
+                  ? fechaObj.toLocaleDateString('es-PE', {
+                      weekday: 'long',
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                    })
+                  : 'Sin fecha';
+
                 return (
                   <div
                     key={t.id}
                     style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '10px 12px',
-                      borderRadius: '14px',
+                      borderRadius: '16px',
                       backgroundColor: 'var(--c-bg)',
-                      border: '1px solid var(--c-border)',
+                      border: isExpanded ? '1.5px solid var(--c-accent)' : '1px solid var(--c-border)',
+                      overflow: 'hidden',
+                      transition: 'all 0.15s ease',
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div
-                        style={{
-                          width: '32px',
-                          height: '32px',
-                          borderRadius: '10px',
-                          backgroundColor: iconBg,
-                          color: iconColor,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          flexShrink: 0,
-                        }}
-                      >
-                        {isTransf ? (
-                          <ArrowUpRight size={15} />
-                        ) : isIngreso ? (
-                          <ArrowDownLeft size={15} />
-                        ) : (
-                          getCategoryIcon(catN2?.nombre || '', 14)
-                        )}
+                    {/* Fila principal del movimiento (al tocar se expande) */}
+                    <div
+                      onClick={() => setExpandedTxId(isExpanded ? null : t.id)}
+                      className="tap-active"
+                      title="Toca para ver fecha y detalles de este movimiento"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '11px 13px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div
+                          style={{
+                            width: '34px',
+                            height: '34px',
+                            borderRadius: '11px',
+                            backgroundColor: iconBg,
+                            color: iconColor,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                          }}
+                        >
+                          {isTransf ? (
+                            <ArrowUpRight size={16} />
+                          ) : isIngreso ? (
+                            <ArrowDownLeft size={16} />
+                          ) : (
+                            getCategoryIcon(catN2?.nombre || '', 15)
+                          )}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--c-text)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span>{catN2?.nombre || (isTransf ? 'Transferencia' : isIngreso ? 'Ingreso' : 'Consumo')}</span>
+                            {cta && (
+                              <span style={{ fontSize: '10px', color: 'var(--c-muted)', backgroundColor: 'var(--c-surface-2)', padding: '1px 6px', borderRadius: '6px', fontWeight: 'normal' }}>
+                                {cta.nombre}
+                              </span>
+                            )}
+                          </div>
+                          {/* Fecha SIEMPRE visible en cada movimiento */}
+                          <div style={{ fontSize: '11px', color: 'var(--c-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                            <span style={{ fontWeight: '600', color: 'var(--c-accent)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                              <Calendar size={11} />
+                              {fechaCorta}
+                            </span>
+                            {t.nota && (
+                              <>
+                                <span>·</span>
+                                <span style={{ color: 'var(--c-text)' }}>{t.nota}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--c-text)' }}>
-                          {catN2?.nombre || (isTransf ? 'Transferencia' : isIngreso ? 'Ingreso' : 'Consumo')}
-                        </div>
-                        <div style={{ fontSize: '11px', color: 'var(--c-muted)', marginTop: '1px' }}>
-                          {t.nota ? t.nota : new Date(t.fecha).toLocaleDateString('es-PE')}
-                        </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span
+                          className="font-tabular"
+                          style={{
+                            fontSize: '13px',
+                            fontWeight: '600',
+                            color: amountColor,
+                          }}
+                        >
+                          {sign}{t.moneda === 'USD' ? '$' : 'S/'} {Number(t.monto).toFixed(2)}
+                        </span>
+                        {isExpanded ? (
+                          <ChevronUp size={15} color="var(--c-muted)" />
+                        ) : (
+                          <ChevronDown size={15} color="var(--c-muted)" />
+                        )}
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span
-                        className="font-tabular"
+                    {/* Detalle desplegable con Fecha Completa al hacer clic */}
+                    {isExpanded && (
+                      <div
                         style={{
-                          fontSize: '13px',
-                          fontWeight: '600',
-                          color: amountColor,
+                          padding: '12px 14px',
+                          backgroundColor: 'var(--c-surface)',
+                          borderTop: '1px solid var(--c-border)',
+                          fontSize: '12px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '6px',
                         }}
                       >
-                        {sign}{t.moneda === 'USD' ? '$' : 'S/'} {Number(t.monto).toFixed(2)}
-                      </span>
-                      {onDeleteTransaccion && (
-                        <button
-                          type="button"
-                          onClick={() => onDeleteTransaccion(t.id)}
-                          className="tap-active"
-                          title="Eliminar movimiento"
-                          style={{
-                            color: 'var(--c-muted)',
-                            padding: '4px',
-                          }}
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      )}
-                    </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ color: 'var(--c-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <Calendar size={13} />
+                            Fecha del movimiento:
+                          </span>
+                          <strong style={{ color: 'var(--c-accent)', textTransform: 'capitalize' }}>
+                            {fechaCompleta}
+                          </strong>
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ color: 'var(--c-muted)' }}>Cuenta:</span>
+                          <strong style={{ color: 'var(--c-text)' }}>{categoriaN1.nombre}</strong>
+                        </div>
+
+                        {catN2 && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ color: 'var(--c-muted)' }}>Concepto:</span>
+                            <strong style={{ color: 'var(--c-text)' }}>{catN2.nombre}</strong>
+                          </div>
+                        )}
+
+                        {cta && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ color: 'var(--c-muted)' }}>Método de pago:</span>
+                            <strong style={{ color: 'var(--c-text)' }}>{cta.nombre} ({cta.tipo})</strong>
+                          </div>
+                        )}
+
+                        {t.nota && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ color: 'var(--c-muted)' }}>Descripción / Nota:</span>
+                            <strong style={{ color: 'var(--c-text)' }}>{t.nota}</strong>
+                          </div>
+                        )}
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ color: 'var(--c-muted)' }}>Tipo y Monto:</span>
+                          <strong style={{ color: amountColor }}>
+                            {isIngreso ? 'Ingreso (+)' : isTransf ? 'Transferencia (-)' : 'Gasto (-)'} {t.moneda === 'USD' ? '$' : 'S/'} {Number(t.monto).toFixed(2)}
+                          </strong>
+                        </div>
+
+                        {onDeleteTransaccion && (
+                          <div style={{ marginTop: '6px', paddingTop: '8px', borderTop: '1px dashed var(--c-border)', display: 'flex', justifyContent: 'flex-end' }}>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDeleteTransaccion(t.id);
+                              }}
+                              className="tap-active"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                fontSize: '11px',
+                                color: '#DC2626',
+                                backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                                padding: '4px 10px',
+                                borderRadius: '6px',
+                                border: '1px solid rgba(239, 68, 68, 0.2)',
+                              }}
+                            >
+                              <Trash2 size={13} />
+                              <span>Eliminar este movimiento</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}

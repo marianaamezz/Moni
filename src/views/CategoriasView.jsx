@@ -577,6 +577,7 @@ export function CategoriasView({
         categoriaN1={selectedCuentaParaDetalle}
         transacciones={transacciones}
         categoriasN2={categoriasN2}
+        cuentas={cuentas}
         selectedCurrency={selectedCurrency}
         onDeleteTransaccion={onDeleteTransaccion}
         onOpenReporte={(cat) => setSelectedCuentaParaReporte(cat)}

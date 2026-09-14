@@ -501,11 +501,15 @@ export function ResumenView({
                         {catN1?.nombre || 'Cuenta'}
                         {catN2 && <span style={{ color: 'var(--c-muted)', fontWeight: '400' }}> · {catN2.nombre}</span>}
                       </div>
-                      <div style={{ fontSize: '11px', color: 'var(--c-muted)', marginTop: '1px' }}>
-                        {t.nota ? (
-                          <span>{t.nota}</span>
-                        ) : (
-                          new Date(t.fecha).toLocaleDateString('es-PE')
+                      <div style={{ fontSize: '11px', color: 'var(--c-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: '500', color: 'var(--c-accent)' }}>
+                          {t.fecha ? new Date(t.fecha).toLocaleDateString('es-PE', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                        </span>
+                        {t.nota && (
+                          <>
+                            <span>·</span>
+                            <span style={{ color: 'var(--c-text)' }}>{t.nota}</span>
+                          </>
                         )}
                       </div>
                     </div>
