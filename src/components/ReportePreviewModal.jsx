@@ -1,6 +1,5 @@
 import React from 'react';
-import { X, Printer, FileSpreadsheet, ArrowDownLeft, ArrowUpRight, Calendar } from 'lucide-react';
-import { getCategoryIcon } from '../lib/icons';
+import { X, Printer, FileSpreadsheet } from 'lucide-react';
 import { exportCategoryToExcel } from '../lib/exportExcel';
 
 export function ReportePreviewModal({
@@ -14,26 +13,38 @@ export function ReportePreviewModal({
 }) {
   if (!isOpen || !categoriaN1) return null;
 
-  // Filtrar movimientos de esta cuenta
+  // Filtrar todos los movimientos de esta cuenta
   const movimientos = transacciones.filter(
-    (t) => t.categoria_n1_id === categoriaN1.id && (t.moneda || 'PEN') === selectedCurrency
+    (t) => t.categoria_n1_id === categoriaN1.id
   );
 
-  let totalIngresos = 0;
-  let totalGastado = 0;
+  // Totales en PEN y USD exactamente como en el Excel
+  let totalIngresosPEN = 0;
+  let totalEgresosPEN = 0;
+  let totalIngresosUSD = 0;
+  let totalEgresosUSD = 0;
 
   movimientos.forEach((t) => {
     const monto = Number(t.monto) || 0;
+    const isUSD = t.moneda === 'USD';
+
     if (t.tipo === 'ingreso') {
-      totalIngresos += monto;
+      if (isUSD) totalIngresosUSD += monto;
+      else totalIngresosPEN += monto;
     } else if (t.tipo === 'gasto' || t.tipo === 'transferencia') {
-      totalGastado += monto;
+      if (isUSD) totalEgresosUSD += monto;
+      else totalEgresosPEN += monto;
     }
   });
 
-  const saldoRestante = totalIngresos - totalGastado;
-  const isNegative = saldoRestante < 0;
-  const currSymbol = selectedCurrency === 'USD' ? '$' : 'S/';
+  const balanceNetoPEN = totalIngresosPEN - totalEgresosPEN;
+  const balanceNetoUSD = totalIngresosUSD - totalEgresosUSD;
+
+  const fechaDescarga = new Date().toLocaleDateString('es-PE', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
 
   const handlePrint = () => {
     window.print();
@@ -47,12 +58,6 @@ export function ReportePreviewModal({
       cuentas,
     });
   };
-
-  const fechaHoy = new Date().toLocaleDateString('es-PE', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-  });
 
   return (
     <div
@@ -77,43 +82,43 @@ export function ReportePreviewModal({
         className="animate-fade-in printable-report"
         style={{
           width: '100%',
-          maxWidth: '560px',
+          maxWidth: '780px',
           backgroundColor: '#FFFFFF',
-          borderRadius: '24px',
+          borderRadius: '20px',
           border: '1px solid var(--c-border)',
           boxShadow: '0 12px 36px rgba(91, 55, 101, 0.15)',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
-          maxHeight: '90vh',
+          maxHeight: '92vh',
         }}
       >
-        {/* Barra superior de acciones (oculta al imprimir) */}
+        {/* Barra superior de control (no sale en la impresión) */}
         <div
           className="no-print"
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '16px 20px',
+            padding: '14px 20px',
             backgroundColor: 'var(--c-bg)',
             borderBottom: '1px solid var(--c-border)',
           }}
         >
           <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--c-accent)' }}>
-            Vista previa del reporte
+            Vista previa del reporte (Formato idéntico al Excel)
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <button
               type="button"
               onClick={handlePrint}
               className="tap-active"
-              title="Imprimir o guardar como PDF"
+              title="Guardar como PDF o imprimir"
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                padding: '6px 12px',
+                padding: '6px 14px',
                 borderRadius: '9999px',
                 backgroundColor: 'var(--c-accent)',
                 color: '#FFFFFF',
@@ -128,12 +133,12 @@ export function ReportePreviewModal({
               type="button"
               onClick={handleExportExcel}
               className="tap-active"
-              title="Descargar versión Excel"
+              title="Descargar archivo Excel / CSV"
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                padding: '6px 12px',
+                padding: '6px 14px',
                 borderRadius: '9999px',
                 backgroundColor: 'rgba(16, 185, 129, 0.1)',
                 color: '#059669',
@@ -143,7 +148,7 @@ export function ReportePreviewModal({
               }}
             >
               <FileSpreadsheet size={14} />
-              <span>Excel</span>
+              <span>Descargar Excel</span>
             </button>
             <button
               type="button"
@@ -161,237 +166,256 @@ export function ReportePreviewModal({
           </div>
         </div>
 
-        {/* Cuerpo del Documento / Estado de cuenta */}
+        {/* CONTENIDO DEL REPORTE CON EL MISMO FORMATO EXACTO QUE EXCEL */}
         <div
           style={{
             padding: '24px 28px',
             overflowY: 'auto',
             flex: 1,
             backgroundColor: '#FFFFFF',
-            color: '#2A1728',
+            color: '#1F1F1F',
+            fontFamily: 'Inter, sans-serif',
           }}
         >
-          {/* Cabecera del Documento */}
+          {/* Bloque 1: Metadatos del Reporte */}
           <div
             style={{
-              display: 'flex',
-              alignItems: 'flex-start',
-              justifyContent: 'space-between',
-              paddingBottom: '16px',
-              borderBottom: '2px solid var(--c-surface-2)',
+              border: '1px solid #D1D5DB',
+              borderRadius: '10px',
+              padding: '14px 18px',
               marginBottom: '20px',
+              backgroundColor: '#F9FAFB',
             }}
           >
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                <div
-                  style={{
-                    width: '28px',
-                    height: '28px',
-                    borderRadius: '8px',
-                    backgroundColor: 'var(--c-accent)',
-                    color: '#FFFFFF',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontFamily: 'Fraunces, serif',
-                    fontWeight: '600',
-                    fontSize: '15px',
-                  }}
-                >
-                  M
-                </div>
-                <h2
-                  style={{
-                    fontFamily: 'Fraunces, serif',
-                    fontSize: '22px',
-                    fontWeight: '600',
-                    color: 'var(--c-text)',
-                    lineHeight: 1.1,
-                  }}
-                >
-                  Moni
-                </h2>
+            <h1
+              style={{
+                fontSize: '16px',
+                fontWeight: '700',
+                color: '#111827',
+                letterSpacing: '0.02em',
+                marginBottom: '10px',
+                textTransform: 'uppercase',
+              }}
+            >
+              REPORTE FINANCIERO — MONI
+            </h1>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px', fontSize: '13px' }}>
+              <div>
+                <span style={{ color: '#6B7280', fontWeight: '500' }}>Cuenta (N1): </span>
+                <strong style={{ color: '#111827' }}>{categoriaN1.nombre}</strong>
               </div>
-              <div style={{ fontSize: '12px', color: 'var(--c-muted)' }}>
-                Reporte de consumos y movimientos
+              <div>
+                <span style={{ color: '#6B7280', fontWeight: '500' }}>Fecha de emisión: </span>
+                <strong style={{ color: '#111827' }}>{fechaDescarga}</strong>
               </div>
-            </div>
-
-            <div style={{ textAlign: 'right' }}>
-              <div
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '4px 12px',
-                  borderRadius: '9999px',
-                  backgroundColor: 'var(--c-surface-2)',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  color: 'var(--c-accent)',
-                  marginBottom: '4px',
-                }}
-              >
-                {getCategoryIcon(categoriaN1.nombre, 15)}
-                <span>Cuenta: {categoriaN1.nombre}</span>
-              </div>
-              <div style={{ fontSize: '11px', color: 'var(--c-muted)' }}>
-                Emisión: {fechaHoy}
+              <div>
+                <span style={{ color: '#6B7280', fontWeight: '500' }}>Total de movimientos: </span>
+                <strong style={{ color: '#111827' }}>{movimientos.length}</strong>
               </div>
             </div>
           </div>
 
-          {/* Tarjetas de Resumen Financiero (KPIs) */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
-              gap: '10px',
-              marginBottom: '22px',
-            }}
-          >
+          {/* Bloque 2: RESUMEN DE BALANCE DE LA CUENTA (Idéntico a Excel) */}
+          <div style={{ marginBottom: '24px' }}>
             <div
               style={{
-                padding: '12px',
-                borderRadius: '14px',
-                backgroundColor: 'rgba(16, 185, 129, 0.08)',
-                border: '1px solid rgba(16, 185, 129, 0.2)',
-              }}
-            >
-              <div style={{ fontSize: '11px', color: '#047857', fontWeight: '500' }}>Ingresos (+)</div>
-              <div
-                className="font-tabular"
-                style={{ fontSize: '16px', fontWeight: '700', color: '#065F46', marginTop: '2px' }}
-              >
-                {currSymbol} {totalIngresos.toFixed(2)}
-              </div>
-            </div>
-
-            <div
-              style={{
-                padding: '12px',
-                borderRadius: '14px',
-                backgroundColor: 'var(--c-surface-2)',
-                border: '1px solid var(--c-border)',
-              }}
-            >
-              <div style={{ fontSize: '11px', color: 'var(--c-muted)', fontWeight: '500' }}>Consumos / Gastado</div>
-              <div
-                className="font-tabular"
-                style={{ fontSize: '16px', fontWeight: '700', color: 'var(--c-accent)', marginTop: '2px' }}
-              >
-                {currSymbol} {totalGastado.toFixed(2)}
-              </div>
-            </div>
-
-            <div
-              style={{
-                padding: '12px',
-                borderRadius: '14px',
-                backgroundColor: isNegative ? 'rgba(91, 55, 101, 0.08)' : 'rgba(16, 185, 129, 0.1)',
-                border: `1px solid ${isNegative ? 'var(--c-accent)' : 'rgba(16, 185, 129, 0.25)'}`,
-              }}
-            >
-              <div style={{ fontSize: '11px', color: isNegative ? 'var(--c-accent)' : '#047857', fontWeight: '500' }}>
-                Lo que queda (Saldo)
-              </div>
-              <div
-                className="font-tabular"
-                style={{
-                  fontSize: '16px',
-                  fontWeight: '700',
-                  color: isNegative ? 'var(--c-accent)' : '#065F46',
-                  marginTop: '2px',
-                }}
-              >
-                {isNegative ? '-' : ''}{currSymbol} {Math.abs(saldoRestante).toFixed(2)}
-              </div>
-            </div>
-          </div>
-
-          {/* Tabla Detallada de Consumos */}
-          <div style={{ marginBottom: '16px' }}>
-            <div
-              style={{
-                fontSize: '11px',
-                color: 'var(--c-muted)',
-                fontWeight: '600',
+                fontSize: '12px',
+                fontWeight: '700',
+                color: '#374151',
                 textTransform: 'uppercase',
                 letterSpacing: '0.04em',
-                marginBottom: '10px',
+                marginBottom: '8px',
               }}
             >
-              Detalle de consumos y movimientos ({movimientos.length})
+              RESUMEN DE BALANCE DE LA CUENTA
+            </div>
+            <div style={{ border: '1px solid #D1D5DB', borderRadius: '10px', overflow: 'hidden' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#F3F4F6', borderBottom: '1px solid #D1D5DB' }}>
+                    <th style={{ padding: '8px 14px', textAlign: 'left', fontWeight: '600', color: '#374151' }}>
+                      Concepto
+                    </th>
+                    <th style={{ padding: '8px 14px', textAlign: 'right', fontWeight: '600', color: '#374151' }}>
+                      Soles (PEN)
+                    </th>
+                    <th style={{ padding: '8px 14px', textAlign: 'right', fontWeight: '600', color: '#374151' }}>
+                      Dólares (USD)
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr style={{ borderBottom: '1px solid #E5E7EB' }}>
+                    <td style={{ padding: '8px 14px', color: '#059669', fontWeight: '500' }}>
+                      Total Ingresos (+)
+                    </td>
+                    <td className="font-tabular" style={{ padding: '8px 14px', textAlign: 'right', color: '#059669', fontWeight: '600' }}>
+                      S/ {totalIngresosPEN.toFixed(2)}
+                    </td>
+                    <td className="font-tabular" style={{ padding: '8px 14px', textAlign: 'right', color: '#059669', fontWeight: '600' }}>
+                      $ {totalIngresosUSD.toFixed(2)}
+                    </td>
+                  </tr>
+                  <tr style={{ borderBottom: '1px solid #E5E7EB' }}>
+                    <td style={{ padding: '8px 14px', color: '#DC2626', fontWeight: '500' }}>
+                      Total Egresos (-)
+                    </td>
+                    <td className="font-tabular" style={{ padding: '8px 14px', textAlign: 'right', color: '#DC2626', fontWeight: '600' }}>
+                      S/ {totalEgresosPEN.toFixed(2)}
+                    </td>
+                    <td className="font-tabular" style={{ padding: '8px 14px', textAlign: 'right', color: '#DC2626', fontWeight: '600' }}>
+                      $ {totalEgresosUSD.toFixed(2)}
+                    </td>
+                  </tr>
+                  <tr style={{ backgroundColor: '#F9FAFB' }}>
+                    <td style={{ padding: '10px 14px', fontWeight: '700', color: '#111827' }}>
+                      BALANCE NETO (Ingresos - Egresos)
+                    </td>
+                    <td
+                      className="font-tabular"
+                      style={{
+                        padding: '10px 14px',
+                        textAlign: 'right',
+                        fontWeight: '700',
+                        color: balanceNetoPEN < 0 ? '#DC2626' : '#059669',
+                      }}
+                    >
+                      S/ {balanceNetoPEN.toFixed(2)}
+                    </td>
+                    <td
+                      className="font-tabular"
+                      style={{
+                        padding: '10px 14px',
+                        textAlign: 'right',
+                        fontWeight: '700',
+                        color: balanceNetoUSD < 0 ? '#DC2626' : '#059669',
+                      }}
+                    >
+                      $ {balanceNetoUSD.toFixed(2)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Bloque 3: DETALLE DE MOVIMIENTOS (Columnas idénticas al Excel) */}
+          <div>
+            <div
+              style={{
+                fontSize: '12px',
+                fontWeight: '700',
+                color: '#374151',
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+                marginBottom: '8px',
+              }}
+            >
+              DETALLE DE MOVIMIENTOS ({movimientos.length})
             </div>
 
             {movimientos.length === 0 ? (
-              <div
-                style={{
-                  textAlign: 'center',
-                  padding: '24px 0',
-                  color: 'var(--c-muted)',
-                  fontSize: '13px',
-                  fontStyle: 'italic',
-                }}
-              >
-                No hay movimientos registrados para esta cuenta en {selectedCurrency}.
+              <div style={{ textAlign: 'center', padding: '24px', color: '#6B7280', fontSize: '13px', border: '1px dashed #D1D5DB', borderRadius: '10px' }}>
+                No hay movimientos registrados para esta cuenta.
               </div>
             ) : (
-              <div style={{ border: '1px solid var(--c-border)', borderRadius: '14px', overflow: 'hidden' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+              <div style={{ border: '1px solid #D1D5DB', borderRadius: '10px', overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', minWidth: '650px' }}>
                   <thead>
-                    <tr style={{ backgroundColor: 'var(--c-bg)', borderBottom: '1px solid var(--c-border)' }}>
-                      <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: '600', color: 'var(--c-muted)' }}>
-                        Fecha
-                      </th>
-                      <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: '600', color: 'var(--c-muted)' }}>
-                        Concepto / Detalle
-                      </th>
-                      <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '600', color: 'var(--c-muted)' }}>
-                        Monto
-                      </th>
+                    <tr style={{ backgroundColor: '#F3F4F6', borderBottom: '1px solid #D1D5DB' }}>
+                      <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: '600', color: '#374151' }}>Fecha</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: '600', color: '#374151' }}>Cuenta (N1)</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: '600', color: '#374151' }}>Concepto (N2)</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: '600', color: '#374151' }}>Tipo</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'center', fontWeight: '600', color: '#374151' }}>Moneda</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '600', color: '#374151' }}>Ingreso (+)</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '600', color: '#374151' }}>Egreso (-)</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '600', color: '#374151' }}>Monto Neto</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: '600', color: '#374151' }}>Método</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: '600', color: '#374151' }}>Descripción / Nota</th>
                     </tr>
                   </thead>
                   <tbody>
                     {movimientos.map((t, idx) => {
                       const catN2 = categoriasN2.find((c) => c.id === t.categoria_n2_id);
+                      const cta = cuentas.find((c) => c.id === t.cuenta_id);
+
+                      const fechaStr = t.fecha
+                        ? new Date(t.fecha).toLocaleDateString('es-PE', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                          })
+                        : '-';
+
+                      const montoNum = Number(t.monto) || 0;
                       const isIngreso = t.tipo === 'ingreso';
                       const isTransf = t.tipo === 'transferencia';
+
+                      let tipoLabel = 'Gasto';
+                      let ingresoCol = '-';
+                      let egresoCol = '-';
+                      let netoCol = -montoNum;
+
+                      if (isIngreso) {
+                        tipoLabel = 'Ingreso';
+                        ingresoCol = montoNum.toFixed(2);
+                        netoCol = montoNum;
+                      } else if (isTransf) {
+                        tipoLabel = 'Transferencia';
+                        egresoCol = montoNum.toFixed(2);
+                        netoCol = -montoNum;
+                      } else {
+                        tipoLabel = 'Gasto';
+                        egresoCol = montoNum.toFixed(2);
+                        netoCol = -montoNum;
+                      }
 
                       return (
                         <tr
                           key={t.id || idx}
                           style={{
-                            borderBottom: idx < movimientos.length - 1 ? '1px solid var(--c-border)' : 'none',
-                            backgroundColor: idx % 2 === 0 ? '#FFFFFF' : 'rgba(251, 243, 248, 0.5)',
+                            borderBottom: idx < movimientos.length - 1 ? '1px solid #E5E7EB' : 'none',
+                            backgroundColor: idx % 2 === 0 ? '#FFFFFF' : '#F9FAFB',
                           }}
                         >
-                          <td style={{ padding: '10px 12px', color: 'var(--c-muted)', whiteSpace: 'nowrap' }}>
-                            {t.fecha ? new Date(t.fecha).toLocaleDateString('es-PE') : '-'}
+                          <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>{fechaStr}</td>
+                          <td style={{ padding: '8px 10px', fontWeight: '500' }}>{categoriaN1.nombre}</td>
+                          <td style={{ padding: '8px 10px' }}>{catN2?.nombre || 'General'}</td>
+                          <td style={{ padding: '8px 10px' }}>
+                            <span
+                              style={{
+                                fontSize: '11px',
+                                padding: '1px 6px',
+                                borderRadius: '4px',
+                                backgroundColor: isIngreso ? '#D1FAE5' : isTransf ? '#E0E7FF' : '#FEE2E2',
+                                color: isIngreso ? '#065F46' : isTransf ? '#3730A3' : '#991B1B',
+                                fontWeight: '500',
+                              }}
+                            >
+                              {tipoLabel}
+                            </span>
                           </td>
-                          <td style={{ padding: '10px 12px' }}>
-                            <div style={{ fontWeight: '600', color: 'var(--c-text)' }}>
-                              {catN2?.nombre || (isTransf ? 'Transferencia' : isIngreso ? 'Ingreso' : 'Consumo')}
-                            </div>
-                            {t.nota && (
-                              <div style={{ fontSize: '11px', color: 'var(--c-muted)', marginTop: '2px' }}>
-                                {t.nota}
-                              </div>
-                            )}
+                          <td style={{ padding: '8px 10px', textAlign: 'center' }}>{t.moneda || 'PEN'}</td>
+                          <td className="font-tabular" style={{ padding: '8px 10px', textAlign: 'right', color: isIngreso ? '#059669' : '#9CA3AF' }}>
+                            {ingresoCol}
+                          </td>
+                          <td className="font-tabular" style={{ padding: '8px 10px', textAlign: 'right', color: !isIngreso ? '#DC2626' : '#9CA3AF' }}>
+                            {egresoCol}
                           </td>
                           <td
                             className="font-tabular"
                             style={{
-                              padding: '10px 12px',
+                              padding: '8px 10px',
                               textAlign: 'right',
                               fontWeight: '600',
-                              color: isIngreso ? '#059669' : isTransf ? 'var(--c-accent2)' : 'var(--c-text)',
-                              whiteSpace: 'nowrap',
+                              color: netoCol >= 0 ? '#059669' : '#DC2626',
                             }}
                           >
-                            {isIngreso ? '+' : '-'}{currSymbol} {Number(t.monto).toFixed(2)}
+                            {netoCol > 0 ? '+' : ''}{netoCol.toFixed(2)}
                           </td>
+                          <td style={{ padding: '8px 10px', color: '#4B5563' }}>{cta?.nombre || 'Sin método'}</td>
+                          <td style={{ padding: '8px 10px', color: '#4B5563', maxWidth: '200px' }}>{t.nota || '-'}</td>
                         </tr>
                       );
                     })}
@@ -399,22 +423,6 @@ export function ReportePreviewModal({
                 </table>
               </div>
             )}
-          </div>
-
-          {/* Pie de Documento */}
-          <div
-            style={{
-              paddingTop: '16px',
-              borderTop: '1px solid var(--c-border)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              fontSize: '11px',
-              color: 'var(--c-muted)',
-            }}
-          >
-            <span>Moni — App de Finanzas Personales</span>
-            <span>Generado automáticamente</span>
           </div>
         </div>
       </div>

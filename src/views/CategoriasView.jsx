@@ -3,6 +3,7 @@ import { Plus, X, Tag, Landmark, Users, FileText, ChevronRight } from 'lucide-re
 import { getCategoryIcon } from '../lib/icons';
 import { ReportePreviewModal } from '../components/ReportePreviewModal';
 import { CuentaDetalleModal } from '../components/CuentaDetalleModal';
+import { MetodoPagoDetalleModal } from '../components/MetodoPagoDetalleModal';
 
 export function CategoriasView({
   categoriasN1,
@@ -25,6 +26,7 @@ export function CategoriasView({
   // Modales
   const [selectedCuentaParaReporte, setSelectedCuentaParaReporte] = useState(null);
   const [selectedCuentaParaDetalle, setSelectedCuentaParaDetalle] = useState(null);
+  const [selectedMetodoParaDetalle, setSelectedMetodoParaDetalle] = useState(null);
 
   const handleAdd = (e) => {
     e.preventDefault();
@@ -244,7 +246,7 @@ export function CategoriasView({
             ? 'Cuentas y sus saldos (Toca una cuenta para ver sus movimientos)'
             : activeSubTab === 'n2'
             ? 'Conceptos de gasto'
-            : 'Métodos de pago registrados'}
+            : 'Métodos de pago (Toca un método para ver sus movimientos)'}
         </div>
 
         {/* Cuentas N1 con Balance, clic para ver movimientos y botón Reporte / PDF */}
@@ -446,45 +448,113 @@ export function CategoriasView({
 
         {/* Métodos de Pago */}
         {activeSubTab === 'cuentas' && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-            {cuentas.map((item) => (
-              <div
-                key={item.id}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '8px 14px',
-                  borderRadius: '9999px',
-                  backgroundColor: 'var(--c-surface)',
-                  border: '1px solid var(--c-border)',
-                  boxShadow: 'var(--shadow-subtle)',
-                  color: 'var(--c-text)',
-                  fontSize: '14px',
-                }}
-              >
-                {getCategoryIcon(item.tipo || item.nombre, 15)}
-                <span style={{ fontWeight: '500' }}>{item.nombre}</span>
-                <span style={{ fontSize: '11px', color: 'var(--c-muted)', textTransform: 'capitalize' }}>
-                  ({item.tipo})
-                </span>
-                <button
-                  type="button"
-                  onClick={() => onDeleteCuenta(item.id)}
-                  className="tap-active"
-                  title={`Eliminar ${item.nombre}`}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {cuentas.map((item) => {
+              const count = transacciones.filter((t) => t.cuenta_id === item.id).length;
+              return (
+                <div
+                  key={item.id}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    color: 'var(--c-muted)',
-                    padding: '2px',
-                    marginLeft: '2px',
+                    justifyContent: 'space-between',
+                    padding: '14px 16px',
+                    borderRadius: '18px',
+                    backgroundColor: 'var(--c-surface)',
+                    border: '1px solid var(--c-border)',
+                    boxShadow: 'var(--shadow-subtle)',
                   }}
                 >
-                  <X size={14} />
-                </button>
-              </div>
-            ))}
+                  {/* Zona Clickeable para abrir el detalle de movimientos de este método */}
+                  <div
+                    onClick={() => setSelectedMetodoParaDetalle(item)}
+                    className="tap-active"
+                    title={`Ver movimientos con ${item.nombre}`}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      cursor: 'pointer',
+                      flex: 1,
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '14px',
+                        backgroundColor: 'var(--c-surface-2)',
+                        color: 'var(--c-accent)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {getCategoryIcon(item.tipo || item.nombre, 18)}
+                    </div>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span
+                          style={{
+                            fontSize: '15px',
+                            fontWeight: '600',
+                            color: 'var(--c-text)',
+                          }}
+                        >
+                          {item.nombre}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: '11px',
+                            color: 'var(--c-muted)',
+                            textTransform: 'capitalize',
+                            backgroundColor: 'var(--c-surface-2)',
+                            padding: '2px 8px',
+                            borderRadius: '9999px',
+                          }}
+                        >
+                          {item.tipo}
+                        </span>
+                      </div>
+                      <div
+                        style={{
+                          fontSize: '12px',
+                          color: 'var(--c-muted)',
+                          marginTop: '2px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        <span>{count} {count === 1 ? 'movimiento' : 'movimientos'}</span>
+                        <span>·</span>
+                        <span style={{ color: 'var(--c-accent2)', fontWeight: '500' }}>Ver movimientos</span>
+                        <ChevronRight size={13} color="var(--c-accent2)" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Botón Eliminar si hay más de 1 cuenta */}
+                  {cuentas.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => onDeleteCuenta(item.id)}
+                      className="tap-active"
+                      title={`Eliminar ${item.nombre}`}
+                      style={{
+                        color: 'var(--c-muted)',
+                        padding: '6px',
+                        borderRadius: '8px',
+                        marginLeft: '8px',
+                      }}
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -510,6 +580,18 @@ export function CategoriasView({
         selectedCurrency={selectedCurrency}
         onDeleteTransaccion={onDeleteTransaccion}
         onOpenReporte={(cat) => setSelectedCuentaParaReporte(cat)}
+      />
+
+      {/* Modal 3: Detalle de Movimientos por Método de Pago */}
+      <MetodoPagoDetalleModal
+        isOpen={Boolean(selectedMetodoParaDetalle)}
+        onClose={() => setSelectedMetodoParaDetalle(null)}
+        cuentaMetodo={selectedMetodoParaDetalle}
+        transacciones={transacciones}
+        categoriasN1={categoriasN1}
+        categoriasN2={categoriasN2}
+        selectedCurrency={selectedCurrency}
+        onDeleteTransaccion={onDeleteTransaccion}
       />
     </div>
   );
