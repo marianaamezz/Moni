@@ -1,21 +1,29 @@
 import React from 'react';
 import { X, Printer, FileSpreadsheet } from 'lucide-react';
-import { exportCategoryToExcel } from '../lib/exportExcel';
+import { exportCategoryToExcel, exportMultiCategoriesToExcel } from '../lib/exportExcel';
 
 export function ReportePreviewModal({
   isOpen,
   onClose,
   categoriaN1,
+  selectedCategoriasN1 = [],
   transacciones = [],
   categoriasN2 = [],
   cuentas = [],
   selectedCurrency = 'PEN',
 }) {
-  if (!isOpen || !categoriaN1) return null;
+  const targetCategorias = selectedCategoriasN1.length > 0
+    ? selectedCategoriasN1
+    : (categoriaN1 ? [categoriaN1] : []);
 
-  // Filtrar todos los movimientos de esta cuenta
+  if (!isOpen || targetCategorias.length === 0) return null;
+
+  const targetIds = targetCategorias.map((c) => c.id);
+  const catNamesMap = Object.fromEntries(targetCategorias.map((c) => [c.id, c.nombre]));
+
+  // Filtrar todos los movimientos de las cuentas seleccionadas
   const movimientos = transacciones.filter(
-    (t) => t.categoria_n1_id === categoriaN1.id
+    (t) => targetIds.includes(t.categoria_n1_id)
   );
 
   // Totales en PEN y USD exactamente como en el Excel
@@ -46,17 +54,31 @@ export function ReportePreviewModal({
     day: '2-digit',
   });
 
+  const isMulti = targetCategorias.length > 1;
+  const nombresCuentasStr = isMulti
+    ? targetCategorias.map((c) => c.nombre).join(', ')
+    : targetCategorias[0]?.nombre || 'Cuenta';
+
   const handlePrint = () => {
     window.print();
   };
 
   const handleExportExcel = () => {
-    exportCategoryToExcel({
-      categoriaN1,
-      transacciones,
-      categoriasN2,
-      cuentas,
-    });
+    if (isMulti) {
+      exportMultiCategoriesToExcel({
+        selectedCategoriasN1: targetCategorias,
+        transacciones,
+        categoriasN2,
+        cuentas,
+      });
+    } else {
+      exportCategoryToExcel({
+        categoriaN1: targetCategorias[0],
+        transacciones,
+        categoriasN2,
+        cuentas,
+      });
+    }
   };
 
   return (
@@ -201,8 +223,10 @@ export function ReportePreviewModal({
             </h1>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px', fontSize: '13px' }}>
               <div>
-                <span style={{ color: '#6B7280', fontWeight: '500' }}>Cuenta (N1): </span>
-                <strong style={{ color: '#111827' }}>{categoriaN1.nombre}</strong>
+                <span style={{ color: '#6B7280', fontWeight: '500' }}>
+                  {isMulti ? 'Cuentas incluidas: ' : 'Cuenta (N1): '}
+                </span>
+                <strong style={{ color: '#111827' }}>{nombresCuentasStr}</strong>
               </div>
               <div>
                 <span style={{ color: '#6B7280', fontWeight: '500' }}>Fecha de emisión: </span>
@@ -380,7 +404,9 @@ export function ReportePreviewModal({
                           }}
                         >
                           <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>{fechaStr}</td>
-                          <td style={{ padding: '8px 10px', fontWeight: '500' }}>{categoriaN1.nombre}</td>
+                          <td style={{ padding: '8px 10px', fontWeight: '500' }}>
+                            {catNamesMap[t.categoria_n1_id] || (targetCategorias[0]?.nombre || 'Cuenta')}
+                          </td>
                           <td style={{ padding: '8px 10px' }}>{catN2?.nombre || 'General'}</td>
                           <td style={{ padding: '8px 10px' }}>
                             <span

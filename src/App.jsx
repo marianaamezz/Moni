@@ -5,6 +5,7 @@ import { useCuentas } from './hooks/useCuentas';
 import { useTransacciones } from './hooks/useTransacciones';
 import { usePresupuestos } from './hooks/usePresupuestos';
 import { Header } from './components/Header';
+import { BalanceReporteModal } from './components/BalanceReporteModal';
 import { BottomNav } from './components/BottomNav';
 import { LoginView } from './views/LoginView';
 import { RegistrarView } from './views/RegistrarView';
@@ -16,6 +17,7 @@ function MainApp() {
   const { user, loading } = useAuth();
   const [activeTab, setActiveTab] = useState('registrar'); // 'registrar' | 'presupuestos' | 'categorias' | 'resumen'
   const [selectedCurrency, setSelectedCurrency] = useState('PEN');
+  const [showBalanceModal, setShowBalanceModal] = useState(false);
 
   const {
     categoriasN1,
@@ -102,6 +104,7 @@ function MainApp() {
         balance={balance}
         selectedCurrency={selectedCurrency}
         onToggleCurrency={toggleCurrency}
+        onOpenBalanceModal={() => setShowBalanceModal(true)}
       />
 
       {/* Contenido Principal según la pestaña activa */}
@@ -160,6 +163,19 @@ function MainApp() {
 
       {/* Navegación Inferior */}
       <BottomNav activeTab={activeTab} onSelectTab={setActiveTab} />
+
+      {/* Modal de Balance y Exportación Consolidada de Cuentas */}
+      <BalanceReporteModal
+        isOpen={showBalanceModal}
+        onClose={() => setShowBalanceModal(false)}
+        balance={balance}
+        transacciones={transacciones}
+        categoriasN1={categoriasN1}
+        categoriasN2={categoriasN2}
+        cuentas={cuentas}
+        selectedCurrency={selectedCurrency}
+        onToggleCurrency={toggleCurrency}
+      />
     </div>
   );
 }

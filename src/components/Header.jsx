@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { User, LogOut, X, ShieldCheck } from 'lucide-react';
 
-export function Header({ balance, selectedCurrency = 'PEN', onToggleCurrency }) {
+export function Header({ balance, selectedCurrency = 'PEN', onToggleCurrency, onOpenBalanceModal }) {
   const { user, signOut, isSupabaseConfigured } = useAuth();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
@@ -77,17 +77,17 @@ export function Header({ balance, selectedCurrency = 'PEN', onToggleCurrency }) 
         </div>
 
         {/* Píldora de Balance y Perfil */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          {/* Balance */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {/* Balance (al hacer clic abre el modal de cuentas y reportes) */}
           <div
-            onClick={onToggleCurrency}
-            title="Toca para cambiar de moneda (PEN / USD)"
+            onClick={onOpenBalanceModal}
+            title="Toca para ver el desglose del balance y generar reportes"
             className="tap-active"
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              padding: '6px 14px',
+              padding: '6px 12px',
               borderRadius: '9999px',
               backgroundColor: isNegative ? 'rgba(91, 55, 101, 0.08)' : 'var(--c-surface)',
               border: `1px solid ${isNegative ? 'var(--c-accent)' : 'var(--c-border)'}`,
@@ -123,6 +123,26 @@ export function Header({ balance, selectedCurrency = 'PEN', onToggleCurrency }) 
               {isNegative ? ' -' : ''}
             </span>
           </div>
+
+          {/* Selector de Moneda Directo */}
+          <button
+            type="button"
+            onClick={onToggleCurrency}
+            title={`Moneda activa: ${selectedCurrency}. Toca para cambiar a ${selectedCurrency === 'PEN' ? 'USD' : 'PEN'}`}
+            className="tap-active"
+            style={{
+              padding: '6px 9px',
+              borderRadius: '9999px',
+              backgroundColor: 'var(--c-surface-2)',
+              border: '1px solid var(--c-border)',
+              fontSize: '11px',
+              fontWeight: '700',
+              color: 'var(--c-accent)',
+              cursor: 'pointer',
+            }}
+          >
+            {selectedCurrency}
+          </button>
 
           {/* Botón de Perfil con Inicial */}
           <button
