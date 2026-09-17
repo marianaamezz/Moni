@@ -1,6 +1,7 @@
-import React from 'react';
-import { X, Printer, FileSpreadsheet } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { X, Printer, FileSpreadsheet, Calendar } from 'lucide-react';
 import { exportCategoryToExcel, exportMultiCategoriesToExcel } from '../lib/exportExcel';
+import { getAvailableMonths, formatPeriodoLabel } from '../lib/dateUtils';
 
 export function ReportePreviewModal({
   isOpen,
@@ -11,7 +12,21 @@ export function ReportePreviewModal({
   categoriasN2 = [],
   cuentas = [],
   selectedCurrency = 'PEN',
+  initialMonth = 'all',
 }) {
+  const [selectedMonth, setSelectedMonth] = useState(initialMonth || 'all');
+
+  useEffect(() => {
+    if (initialMonth) {
+      setSelectedMonth(initialMonth);
+    }
+  }, [initialMonth]);
+
+  const availableMonths = useMemo(
+    () => getAvailableMonths(transacciones),
+    [transacciones]
+  );
+
   const targetCategorias = selectedCategoriasN1.length > 0
     ? selectedCategoriasN1
     : (categoriaN1 ? [categoriaN1] : []);
@@ -21,10 +36,14 @@ export function ReportePreviewModal({
   const targetIds = targetCategorias.map((c) => c.id);
   const catNamesMap = Object.fromEntries(targetCategorias.map((c) => [c.id, c.nombre]));
 
-  // Filtrar todos los movimientos de las cuentas seleccionadas
-  const movimientos = transacciones.filter(
-    (t) => targetIds.includes(t.categoria_n1_id)
-  );
+  // Filtrar todos los movimientos de las cuentas seleccionadas y del mes elegido
+  const movimientos = transacciones.filter((t) => {
+    if (!targetIds.includes(t.categoria_n1_id)) return false;
+    if (selectedMonth && selectedMonth !== 'all') {
+      return t.fecha && String(t.fecha).startsWith(selectedMonth);
+    }
+    return true;
+  });
 
   // Totales en PEN y USD exactamente como en el Excel
   let totalIngresosPEN = 0;
@@ -70,6 +89,7 @@ export function ReportePreviewModal({
         transacciones,
         categoriasN2,
         cuentas,
+        selectedMonth,
       });
     } else {
       exportCategoryToExcel({
@@ -77,6 +97,7 @@ export function ReportePreviewModal({
         transacciones,
         categoriasN2,
         cuentas,
+        selectedMonth,
       });
     }
   };
@@ -122,14 +143,61 @@ export function ReportePreviewModal({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '14px 20px',
+            padding: '12px 20px',
             backgroundColor: 'var(--c-bg)',
             borderBottom: '1px solid var(--c-border)',
+            gap: '10px',
+            flexWrap: 'wrap',
           }}
         >
-          <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--c-accent)' }}>
-            Vista previa del reporte (Formato idéntico al Excel)
+          {/* Selector de Mes */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              borderRadius: '9999px',
+              backgroundColor: 'var(--c-surface)',
+              border: '1px solid var(--c-border)',
+              boxShadow: 'var(--shadow-subtle)',
+            }}
+          >
+            <Calendar size={14} color="var(--c-accent)" />
+            <span
+              style={{
+                fontSize: '11px',
+                fontWeight: '600',
+                color: 'var(--c-muted)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+              }}
+            >
+              Mes:
+            </span>
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              style={{
+                border: 'none',
+                backgroundColor: 'transparent',
+                fontSize: '12px',
+                fontWeight: '600',
+                color: 'var(--c-accent)',
+                outline: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              <option value="all">Todos los meses (Histórico)</option>
+              {availableMonths.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
           </div>
+
+          {/* Botones de acción */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <button
               type="button"
@@ -227,6 +295,10 @@ export function ReportePreviewModal({
                   {isMulti ? 'Cuentas incluidas: ' : 'Cuenta (N1): '}
                 </span>
                 <strong style={{ color: '#111827' }}>{nombresCuentasStr}</strong>
+              </div>
+              <div>
+                <span style={{ color: '#6B7280', fontWeight: '500' }}>Período: </span>
+                <strong style={{ color: '#111827' }}>{formatPeriodoLabel(selectedMonth)}</strong>
               </div>
               <div>
                 <span style={{ color: '#6B7280', fontWeight: '500' }}>Fecha de emisión: </span>

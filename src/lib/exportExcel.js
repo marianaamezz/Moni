@@ -1,21 +1,22 @@
-/**
- * Utilidad para exportar movimientos de una categoría N1 a formato Excel / CSV
- * Incluye cabecera con resumen del BALANCE NETO (Ingresos - Egresos) y detalle
- * de movimientos con BOM UTF-8 (\uFEFF) para abrir directamente en Excel, Numbers y Sheets.
- */
+import { formatPeriodoLabel } from './dateUtils';
 
 export function exportCategoryToExcel({
   categoriaN1,
   transacciones = [],
   categoriasN2 = [],
   cuentas = [],
+  selectedMonth = 'all',
 }) {
   if (!categoriaN1) return;
 
-  // Filtrar movimientos de esta categoría N1
-  const movimientos = transacciones.filter(
-    (t) => t.categoria_n1_id === categoriaN1.id
-  );
+  // Filtrar movimientos de esta categoría N1 (y del mes seleccionado si aplica)
+  const movimientos = transacciones.filter((t) => {
+    if (t.categoria_n1_id !== categoriaN1.id) return false;
+    if (selectedMonth && selectedMonth !== 'all') {
+      return t.fecha && String(t.fecha).startsWith(selectedMonth);
+    }
+    return true;
+  });
 
   // Calcular totales (separado por moneda o general)
   let totalIngresosPEN = 0;
@@ -45,14 +46,15 @@ export function exportCategoryToExcel({
     day: '2-digit',
   });
 
-  // Cabecera del Reporte con Balance
+  // Cabecera del Reporte con Balance y Período
   const summaryRows = [
     `"REPORTE FINANCIERO - MONI"`,
-    `"Categoría (N1):","${(categoriaN1.nombre || '').replace(/"/g, '""')}"`,
+    `"Cuenta (N1):","${(categoriaN1.nombre || '').replace(/"/g, '""')}"`,
+    `"Período:","${formatPeriodoLabel(selectedMonth).replace(/"/g, '""')}"`,
     `"Fecha de emisión:","${fechaDescarga}"`,
     `"Total de movimientos:",${movimientos.length}`,
     `""`,
-    `"RESUMEN DE BALANCE DE LA CATEGORÍA"`,
+    `"RESUMEN DE BALANCE DE LA CUENTA"`,
     `"Concepto","Soles (PEN)","Dólares (USD)"`,
     `"Total Ingresos (+)",${totalIngresosPEN.toFixed(2)},${totalIngresosUSD.toFixed(2)}`,
     `"Total Egresos (-)",${totalEgresosPEN.toFixed(2)},${totalEgresosUSD.toFixed(2)}`,
@@ -143,10 +145,11 @@ export function exportCategoryToExcel({
     '_'
   );
   const todayStr = new Date().toISOString().split('T')[0];
+  const periodSlug = selectedMonth && selectedMonth !== 'all' ? selectedMonth : 'Historico';
   link.setAttribute('href', url);
   link.setAttribute(
     'download',
-    `Moni_${cleanCatName}_Balance_${todayStr}.csv`
+    `Moni_${cleanCatName}_${periodSlug}_${todayStr}.csv`
   );
   document.body.appendChild(link);
   link.click();
@@ -162,16 +165,21 @@ export function exportMultiCategoriesToExcel({
   transacciones = [],
   categoriasN2 = [],
   cuentas = [],
+  selectedMonth = 'all',
 }) {
   if (!selectedCategoriasN1 || selectedCategoriasN1.length === 0) return;
 
   const selectedIds = selectedCategoriasN1.map((c) => c.id);
   const catNamesMap = Object.fromEntries(selectedCategoriasN1.map((c) => [c.id, c.nombre]));
 
-  // Filtrar movimientos de las cuentas seleccionadas
-  const movimientos = transacciones.filter(
-    (t) => selectedIds.includes(t.categoria_n1_id)
-  );
+  // Filtrar movimientos de las cuentas seleccionadas (y del mes si aplica)
+  const movimientos = transacciones.filter((t) => {
+    if (!selectedIds.includes(t.categoria_n1_id)) return false;
+    if (selectedMonth && selectedMonth !== 'all') {
+      return t.fecha && String(t.fecha).startsWith(selectedMonth);
+    }
+    return true;
+  });
 
   // Totales
   let totalIngresosPEN = 0;
@@ -210,6 +218,7 @@ export function exportMultiCategoriesToExcel({
   const summaryRows = [
     `"REPORTE FINANCIERO CONSOLIDADO - MONI"`,
     `"Cuentas incluidas:","${nombresCuentas.replace(/"/g, '""')}"`,
+    `"Período:","${formatPeriodoLabel(selectedMonth).replace(/"/g, '""')}"`,
     `"Fecha de emisión:","${fechaDescarga}"`,
     `"Total de movimientos:",${movimientos.length}`,
     `""`,
@@ -297,10 +306,11 @@ export function exportMultiCategoriesToExcel({
   const link = document.createElement('a');
 
   const todayStr = new Date().toISOString().split('T')[0];
+  const periodSlug = selectedMonth && selectedMonth !== 'all' ? selectedMonth : 'Historico';
   link.setAttribute('href', url);
   link.setAttribute(
     'download',
-    `Moni_Reporte_Consolidado_${selectedCategoriasN1.length}_Cuentas_${todayStr}.csv`
+    `Moni_Reporte_Consolidado_${selectedCategoriasN1.length}_Cuentas_${periodSlug}_${todayStr}.csv`
   );
   document.body.appendChild(link);
   link.click();

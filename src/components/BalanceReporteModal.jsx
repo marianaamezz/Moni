@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { X, Check, Printer, FileSpreadsheet, CheckSquare, Square, ArrowUpRight, ArrowDownLeft, Landmark } from 'lucide-react';
+import { X, Check, Printer, FileSpreadsheet, CheckSquare, Square, ArrowUpRight, ArrowDownLeft, Landmark, Calendar } from 'lucide-react';
 import { getCategoryIcon } from '../lib/icons';
 import { exportMultiCategoriesToExcel } from '../lib/exportExcel';
+import { getAvailableMonths, formatPeriodoLabel } from '../lib/dateUtils';
 import { ReportePreviewModal } from './ReportePreviewModal';
 
 export function BalanceReporteModal({
@@ -20,8 +21,17 @@ export function BalanceReporteModal({
     categoriasN1.map((c) => c.id)
   );
 
+  // Estado para el mes a descargar ('all' o 'YYYY-MM')
+  const [selectedMonth, setSelectedMonth] = useState('all');
+
   // Modal secundario de preview PDF
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+
+  // Meses disponibles a partir de las transacciones
+  const availableMonths = useMemo(
+    () => getAvailableMonths(transacciones),
+    [transacciones]
+  );
 
   // Mantener sincronizado si cambian las categorías
   React.useEffect(() => {
@@ -36,11 +46,14 @@ export function BalanceReporteModal({
   const isNegative = currentBalance < 0;
   const currSymbol = selectedCurrency === 'USD' ? '$' : 'S/';
 
-  // Calcular ingresos y egresos globales para la moneda activa
+  // Calcular ingresos y egresos globales para la moneda activa y mes seleccionado si aplica
   let globalIngresos = 0;
   let globalGastos = 0;
   transacciones.forEach((t) => {
     if ((t.moneda || 'PEN') !== selectedCurrency) return;
+    if (selectedMonth && selectedMonth !== 'all') {
+      if (!t.fecha || !String(t.fecha).startsWith(selectedMonth)) return;
+    }
     const monto = Number(t.monto) || 0;
     if (t.tipo === 'ingreso') {
       globalIngresos += monto;
@@ -73,10 +86,14 @@ export function BalanceReporteModal({
     selectedAccountIds.includes(c.id)
   );
 
-  // Total de movimientos de las cuentas seleccionadas
-  const totalMovimientosSeleccionados = transacciones.filter((t) =>
-    selectedAccountIds.includes(t.categoria_n1_id)
-  ).length;
+  // Total de movimientos de las cuentas seleccionadas (filtrados por mes si aplica)
+  const totalMovimientosSeleccionados = transacciones.filter((t) => {
+    if (!selectedAccountIds.includes(t.categoria_n1_id)) return false;
+    if (selectedMonth && selectedMonth !== 'all') {
+      return t.fecha && String(t.fecha).startsWith(selectedMonth);
+    }
+    return true;
+  }).length;
 
   // Descarga directa a Excel
   const handleExportExcel = () => {
@@ -86,6 +103,7 @@ export function BalanceReporteModal({
       transacciones,
       categoriasN2,
       cuentas,
+      selectedMonth,
     });
   };
 
@@ -261,6 +279,72 @@ export function BalanceReporteModal({
               </div>
             </div>
 
+            {/* Selector de Mes para el Reporte */}
+            <div
+              style={{
+                padding: '12px 16px',
+                borderRadius: '16px',
+                backgroundColor: 'var(--c-surface)',
+                border: '1px solid var(--c-border)',
+                boxShadow: 'var(--shadow-subtle)',
+                marginBottom: '20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '10px',
+                flexWrap: 'wrap',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '10px',
+                    backgroundColor: 'var(--c-surface-2)',
+                    color: 'var(--c-accent)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <Calendar size={16} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--c-text)' }}>
+                    Mes a descargar
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--c-muted)' }}>
+                    {formatPeriodoLabel(selectedMonth)}
+                  </div>
+                </div>
+              </div>
+
+              <select
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                style={{
+                  padding: '7px 12px',
+                  borderRadius: '10px',
+                  border: '1px solid var(--c-border)',
+                  backgroundColor: 'var(--c-bg)',
+                  color: 'var(--c-accent)',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  outline: 'none',
+                  cursor: 'pointer',
+                }}
+              >
+                <option value="all">Todos los meses (Histórico)</option>
+                {availableMonths.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {/* Tarjeta 2: Selector de Cuentas para el Reporte Consolidado */}
             <div>
               <div
@@ -311,9 +395,13 @@ export function BalanceReporteModal({
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {categoriasN1.map((cat) => {
                   const isChecked = selectedAccountIds.includes(cat.id);
-                  const catTx = transacciones.filter(
-                    (t) => t.categoria_n1_id === cat.id
-                  );
+                  const catTx = transacciones.filter((t) => {
+                    if (t.categoria_n1_id !== cat.id) return false;
+                    if (selectedMonth && selectedMonth !== 'all') {
+                      return t.fecha && String(t.fecha).startsWith(selectedMonth);
+                    }
+                    return true;
+                  });
 
                   return (
                     <div
@@ -492,6 +580,7 @@ export function BalanceReporteModal({
         categoriasN2={categoriasN2}
         cuentas={cuentas}
         selectedCurrency={selectedCurrency}
+        initialMonth={selectedMonth}
       />
     </>
   );
