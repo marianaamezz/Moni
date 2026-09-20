@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { getCategoryIcon } from '../lib/icons';
-import { PieChart, Trash2, Calendar, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import { PieChart, Trash2, Pencil, Calendar, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import { EditarTransaccionModal } from '../components/EditarTransaccionModal';
 
 const PALETTE_COLORS = [
   '#5B3765', // accent principal
@@ -16,10 +17,13 @@ export function ResumenView({
   transacciones = [],
   categoriasN1 = [],
   categoriasN2 = [],
+  cuentas = [],
   selectedCurrency = 'PEN',
   onDeleteTransaccion,
+  onUpdateTransaccion,
 }) {
   const [viewMode, setViewMode] = useState('n1'); // 'n1' (por cuenta) | 'n2' (por concepto)
+  const [editingTransaccion, setEditingTransaccion] = useState(null);
 
   // Filtrar gastos y transferencias de la moneda actual
   const gastosYTransferencias = useMemo(() => {
@@ -526,6 +530,20 @@ export function ResumenView({
                     >
                       {sign}{t.moneda === 'USD' ? '$' : 'S/'} {Number(t.monto).toFixed(2)}
                     </span>
+                    {onUpdateTransaccion && (
+                      <button
+                        type="button"
+                        onClick={() => setEditingTransaccion(t)}
+                        className="tap-active"
+                        title="Editar movimiento"
+                        style={{
+                          color: 'var(--c-accent)',
+                          padding: '4px',
+                        }}
+                      >
+                        <Pencil size={14} />
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => onDeleteTransaccion(t.id)}
@@ -545,6 +563,17 @@ export function ResumenView({
           </div>
         </div>
       )}
+
+      {/* Modal Editar Movimiento */}
+      <EditarTransaccionModal
+        isOpen={Boolean(editingTransaccion)}
+        onClose={() => setEditingTransaccion(null)}
+        transaccion={editingTransaccion}
+        categoriasN1={categoriasN1}
+        categoriasN2={categoriasN2}
+        cuentas={cuentas}
+        onUpdate={onUpdateTransaccion}
+      />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Trash2, CreditCard, Banknote, Landmark, ArrowDownLeft, ArrowUpRight, Calendar, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, Trash2, Pencil, CreditCard, Banknote, Landmark, ArrowDownLeft, ArrowUpRight, Calendar, ChevronDown, ChevronUp } from 'lucide-react';
 import { getCategoryIcon } from '../lib/icons';
 
 export function MetodoPagoDetalleModal({
@@ -11,6 +11,7 @@ export function MetodoPagoDetalleModal({
   categoriasN2 = [],
   selectedCurrency = 'PEN',
   onDeleteTransaccion,
+  onEditTransaccion,
 }) {
   const [expandedTxId, setExpandedTxId] = useState(null);
   if (!isOpen || !cuentaMetodo) return null;
@@ -367,30 +368,57 @@ export function MetodoPagoDetalleModal({
                           </strong>
                         </div>
 
-                        {onDeleteTransaccion && (
-                          <div style={{ marginTop: '6px', paddingTop: '8px', borderTop: '1px dashed var(--c-border)', display: 'flex', justifyContent: 'flex-end' }}>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onDeleteTransaccion(t.id);
-                              }}
-                              className="tap-active"
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                fontSize: '11px',
-                                color: '#DC2626',
-                                backgroundColor: 'rgba(239, 68, 68, 0.08)',
-                                padding: '4px 10px',
-                                borderRadius: '6px',
-                                border: '1px solid rgba(239, 68, 68, 0.2)',
-                              }}
-                            >
-                              <Trash2 size={13} />
-                              <span>Eliminar este movimiento</span>
-                            </button>
+                        {(onEditTransaccion || onDeleteTransaccion) && (
+                          <div style={{ marginTop: '6px', paddingTop: '8px', borderTop: '1px dashed var(--c-border)', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                            {onEditTransaccion && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onEditTransaccion(t);
+                                }}
+                                className="tap-active"
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  fontSize: '11px',
+                                  color: 'var(--c-accent)',
+                                  backgroundColor: 'rgba(91, 55, 101, 0.08)',
+                                  padding: '4px 10px',
+                                  borderRadius: '6px',
+                                  border: '1px solid rgba(91, 55, 101, 0.2)',
+                                  fontWeight: 500,
+                                }}
+                              >
+                                <Pencil size={13} />
+                                <span>Editar</span>
+                              </button>
+                            )}
+                            {onDeleteTransaccion && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onDeleteTransaccion(t.id);
+                                }}
+                                className="tap-active"
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  fontSize: '11px',
+                                  color: '#DC2626',
+                                  backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                                  padding: '4px 10px',
+                                  borderRadius: '6px',
+                                  border: '1px solid rgba(239, 68, 68, 0.2)',
+                                }}
+                              >
+                                <Trash2 size={13} />
+                                <span>Eliminar</span>
+                              </button>
+                            )}
                           </div>
                         )}
                       </div>

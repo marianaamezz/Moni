@@ -264,6 +264,52 @@ export function useTransacciones() {
     }
   };
 
+  const updateTransaccion = async (id, updatedFields) => {
+    if (!user || !id) return;
+
+    const cleanPayload = {
+      monto: Number(updatedFields.monto),
+      moneda: updatedFields.moneda || 'PEN',
+      tipo: updatedFields.tipo || 'gasto',
+      categoria_n1_id: updatedFields.categoria_n1_id,
+      categoria_n2_id: updatedFields.categoria_n2_id || null,
+      cuenta_id: updatedFields.cuenta_id || null,
+      nota: updatedFields.nota ? updatedFields.nota.trim() : null,
+      fecha: updatedFields.fecha,
+    };
+
+    if (!isSupabaseConfigured) {
+      const updated = transacciones.map((t) =>
+        t.id === id ? { ...t, ...cleanPayload } : t
+      );
+      setTransacciones(updated);
+      localStorage.setItem(`moni_transacciones_${user.id}`, JSON.stringify(updated));
+      return updated.find((t) => t.id === id);
+    }
+
+    const { data, error } = await supabase
+      .from('transacciones')
+      .update(cleanPayload)
+      .eq('id', id)
+      .select(`
+        *,
+        categoria_n1:categorias_n1(id, nombre, color),
+        categoria_n2:categorias_n2(id, nombre, color),
+        cuenta:cuentas(id, nombre, tipo)
+      `)
+      .single();
+
+    if (error) {
+      console.error('Error updating transaction:', error);
+      throw error;
+    }
+
+    setTransacciones((prev) =>
+      prev.map((t) => (t.id === id ? data || { ...t, ...cleanPayload } : t))
+    );
+    return data;
+  };
+
   return {
     transacciones,
     loading,
@@ -271,6 +317,7 @@ export function useTransacciones() {
     addTransaccion,
     addTransferencia,
     deleteTransaccion,
+    updateTransaccion,
     refreshTransacciones: fetchTransacciones,
   };
 }

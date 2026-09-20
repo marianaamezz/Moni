@@ -4,6 +4,7 @@ import { getCategoryIcon } from '../lib/icons';
 import { ReportePreviewModal } from '../components/ReportePreviewModal';
 import { CuentaDetalleModal } from '../components/CuentaDetalleModal';
 import { MetodoPagoDetalleModal } from '../components/MetodoPagoDetalleModal';
+import { EditarTransaccionModal } from '../components/EditarTransaccionModal';
 
 export function CategoriasView({
   categoriasN1,
@@ -18,6 +19,7 @@ export function CategoriasView({
   onAddCuenta,
   onDeleteCuenta,
   onDeleteTransaccion,
+  onUpdateTransaccion,
 }) {
   const [activeSubTab, setActiveSubTab] = useState('n1'); // 'n1' (Cuentas) | 'n2' (Conceptos) | 'cuentas' (Métodos de pago)
   const [nuevoNombre, setNuevoNombre] = useState('');
@@ -27,6 +29,7 @@ export function CategoriasView({
   const [selectedCuentaParaReporte, setSelectedCuentaParaReporte] = useState(null);
   const [selectedCuentaParaDetalle, setSelectedCuentaParaDetalle] = useState(null);
   const [selectedMetodoParaDetalle, setSelectedMetodoParaDetalle] = useState(null);
+  const [editingTransaccion, setEditingTransaccion] = useState(null);
 
   const handleAdd = (e) => {
     e.preventDefault();
@@ -580,6 +583,7 @@ export function CategoriasView({
         cuentas={cuentas}
         selectedCurrency={selectedCurrency}
         onDeleteTransaccion={onDeleteTransaccion}
+        onEditTransaccion={(t) => setEditingTransaccion(t)}
         onOpenReporte={(cat) => setSelectedCuentaParaReporte(cat)}
       />
 
@@ -593,6 +597,18 @@ export function CategoriasView({
         categoriasN2={categoriasN2}
         selectedCurrency={selectedCurrency}
         onDeleteTransaccion={onDeleteTransaccion}
+        onEditTransaccion={(t) => setEditingTransaccion(t)}
+      />
+
+      {/* Modal 4: Editar Movimiento */}
+      <EditarTransaccionModal
+        isOpen={Boolean(editingTransaccion)}
+        onClose={() => setEditingTransaccion(null)}
+        transaccion={editingTransaccion}
+        categoriasN1={categoriasN1}
+        categoriasN2={categoriasN2}
+        cuentas={cuentas}
+        onUpdate={onUpdateTransaccion}
       />
     </div>
   );

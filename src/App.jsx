@@ -36,6 +36,7 @@ function MainApp() {
     addTransaccion,
     addTransferencia,
     deleteTransaccion,
+    updateTransaccion,
   } = useTransacciones();
 
   const {
@@ -146,6 +147,7 @@ function MainApp() {
             onAddCuenta={addCuenta}
             onDeleteCuenta={deleteCuenta}
             onDeleteTransaccion={deleteTransaccion}
+            onUpdateTransaccion={updateTransaccion}
           />
         )}
 
@@ -157,6 +159,7 @@ function MainApp() {
             cuentas={cuentas}
             selectedCurrency={selectedCurrency}
             onDeleteTransaccion={deleteTransaccion}
+            onUpdateTransaccion={updateTransaccion}
           />
         )}
       </main>
