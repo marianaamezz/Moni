@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { getCategoryIcon } from '../lib/icons';
-import { PieChart, Trash2, Pencil, Calendar, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import { PieChart, Trash2, Pencil, Calendar, ArrowUpRight, ArrowDownLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 import { EditarTransaccionModal } from '../components/EditarTransaccionModal';
+import { getAvailableMonths, formatPeriodoLabel } from '../lib/dateUtils';
 
 const PALETTE_COLORS = [
   '#5B3765', // accent principal
@@ -25,24 +26,80 @@ export function ResumenView({
   const [viewMode, setViewMode] = useState('n1'); // 'n1' (por cuenta) | 'n2' (por concepto)
   const [editingTransaccion, setEditingTransaccion] = useState(null);
 
-  // Filtrar gastos y transferencias de la moneda actual
-  const gastosYTransferencias = useMemo(() => {
-    return transacciones.filter(
-      (t) => (t.tipo === 'gasto' || t.tipo === 'transferencia') && (t.moneda || 'PEN') === selectedCurrency
+  const availableMonths = useMemo(() => getAvailableMonths(transacciones), [transacciones]);
+  const currentMonthKey = useMemo(() => new Date().toISOString().slice(0, 7), []);
+
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const hasInCurrent = transacciones.some(
+      (t) => t.fecha && String(t.fecha).startsWith(currentMonthKey)
     );
-  }, [transacciones, selectedCurrency]);
+    if (hasInCurrent) return currentMonthKey;
+    if (availableMonths.length > 0) return availableMonths[0].value;
+    return 'all';
+  });
+
+  const currentMonthIndex = useMemo(() => {
+    if (selectedMonth === 'all') return -1;
+    return availableMonths.findIndex((m) => m.value === selectedMonth);
+  }, [selectedMonth, availableMonths]);
+
+  const isNewestMonth = selectedMonth !== 'all' && currentMonthIndex === 0;
+  const isOldestMonth = selectedMonth !== 'all' && currentMonthIndex === availableMonths.length - 1;
+
+  const handlePrevMonth = () => {
+    if (selectedMonth === 'all') {
+      if (availableMonths.length > 0) setSelectedMonth(availableMonths[0].value);
+      return;
+    }
+    if (currentMonthIndex < availableMonths.length - 1 && currentMonthIndex >= 0) {
+      setSelectedMonth(availableMonths[currentMonthIndex + 1].value);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (selectedMonth === 'all') return;
+    if (currentMonthIndex > 0) {
+      setSelectedMonth(availableMonths[currentMonthIndex - 1].value);
+    }
+  };
+
+  // Filtrar transacciones por moneda y mes seleccionado
+  const filteredTransacciones = useMemo(() => {
+    return transacciones.filter((t) => {
+      if ((t.moneda || 'PEN') !== selectedCurrency) return false;
+      if (selectedMonth && selectedMonth !== 'all') {
+        return t.fecha && String(t.fecha).startsWith(selectedMonth);
+      }
+      return true;
+    });
+  }, [transacciones, selectedCurrency, selectedMonth]);
+
+  // Filtrar gastos y transferencias de la moneda y mes actual
+  const gastosYTransferencias = useMemo(() => {
+    return filteredTransacciones.filter(
+      (t) => t.tipo === 'gasto' || t.tipo === 'transferencia'
+    );
+  }, [filteredTransacciones]);
 
   const totalGastado = useMemo(() => {
     return gastosYTransferencias.reduce((acc, t) => acc + (Number(t.monto) || 0), 0);
   }, [gastosYTransferencias]);
 
+  const totalIngresos = useMemo(() => {
+    return filteredTransacciones
+      .filter((t) => t.tipo === 'ingreso')
+      .reduce((acc, t) => acc + (Number(t.monto) || 0), 0);
+  }, [filteredTransacciones]);
+
+  const balancePeriodo = totalIngresos - totalGastado;
+
   // Agrupar por Cuenta (N1) o Concepto (N2)
   const breakdown = useMemo(() => {
     if (viewMode === 'n1') {
-      // Para cada cuenta N1 calculamos lo que se ha gastado Y lo que queda (ingresos - gastos)
+      // Para cada cuenta N1 calculamos lo que se ha gastado Y lo que queda (ingresos - gastos) en este período
       const list = categoriasN1.map((cat, index) => {
-        const catTx = transacciones.filter(
-          (t) => t.categoria_n1_id === cat.id && (t.moneda || 'PEN') === selectedCurrency
+        const catTx = filteredTransacciones.filter(
+          (t) => t.categoria_n1_id === cat.id
         );
 
         let gastado = 0;
@@ -105,7 +162,7 @@ export function ResumenView({
         porcentaje: Math.round((item.total / totalGastado) * 100),
         color: PALETTE_COLORS[index % PALETTE_COLORS.length],
       }));
-  }, [gastosYTransferencias, viewMode, categoriasN1, categoriasN2, totalGastado, transacciones, selectedCurrency]);
+  }, [filteredTransacciones, gastosYTransferencias, viewMode, categoriasN1, categoriasN2, totalGastado]);
 
   // Cálculo de segmentos para el donut SVG
   const donutSegments = useMemo(() => {
@@ -129,6 +186,16 @@ export function ResumenView({
         };
       });
   }, [breakdown, totalGastado]);
+
+  // Movimientos del período para el historial inferior
+  const movimientosDelPeriodo = useMemo(() => {
+    return transacciones.filter((t) => {
+      if (selectedMonth && selectedMonth !== 'all') {
+        return t.fecha && String(t.fecha).startsWith(selectedMonth);
+      }
+      return true;
+    });
+  }, [transacciones, selectedMonth]);
 
   const currSymbol = selectedCurrency === 'USD' ? '$' : 'S/';
 
@@ -157,6 +224,120 @@ export function ResumenView({
         <p style={{ fontSize: '13px', color: 'var(--c-muted)', marginTop: '2px' }}>
           Lo que has gastado y lo que queda disponible en cada cuenta
         </p>
+      </div>
+
+      {/* Selector de Mes */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          backgroundColor: 'var(--c-surface)',
+          borderRadius: '18px',
+          padding: '10px 14px',
+          border: '1px solid var(--c-border)',
+          boxShadow: 'var(--shadow-subtle)',
+          marginBottom: '16px',
+          gap: '8px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div
+            style={{
+              width: '34px',
+              height: '34px',
+              borderRadius: '10px',
+              backgroundColor: 'rgba(91, 55, 101, 0.08)',
+              color: 'var(--c-accent)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <Calendar size={16} />
+          </div>
+          <div>
+            <div style={{ fontSize: '11px', color: 'var(--c-muted)', fontWeight: '500' }}>
+              Mes del resumen
+            </div>
+            <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--c-text)' }}>
+              {selectedMonth === 'all' ? 'Histórico completo' : formatPeriodoLabel(selectedMonth)}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <button
+            type="button"
+            onClick={handlePrevMonth}
+            disabled={isOldestMonth}
+            className="tap-active"
+            title="Mes anterior"
+            style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '8px',
+              border: '1px solid var(--c-border)',
+              backgroundColor: isOldestMonth ? 'var(--c-surface-2)' : 'var(--c-surface)',
+              color: isOldestMonth ? 'var(--c-muted)' : 'var(--c-accent)',
+              opacity: isOldestMonth ? 0.35 : 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: isOldestMonth ? 'not-allowed' : 'pointer',
+            }}
+          >
+            <ChevronLeft size={16} />
+          </button>
+
+          <select
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
+            style={{
+              padding: '6px 10px',
+              borderRadius: '8px',
+              border: '1px solid var(--c-border)',
+              backgroundColor: 'var(--c-surface-2)',
+              color: 'var(--c-accent)',
+              fontSize: '12px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              outline: 'none',
+              maxWidth: '140px',
+            }}
+          >
+            <option value="all">Todos los meses</option>
+            {availableMonths.map((m) => (
+              <option key={m.value} value={m.value}>
+                {m.label}
+              </option>
+            ))}
+          </select>
+
+          <button
+            type="button"
+            onClick={handleNextMonth}
+            disabled={isNewestMonth}
+            className="tap-active"
+            title="Mes siguiente"
+            style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '8px',
+              border: '1px solid var(--c-border)',
+              backgroundColor: isNewestMonth ? 'var(--c-surface-2)' : 'var(--c-surface)',
+              color: isNewestMonth ? 'var(--c-muted)' : 'var(--c-accent)',
+              opacity: isNewestMonth ? 0.35 : 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: isNewestMonth ? 'not-allowed' : 'pointer',
+            }}
+          >
+            <ChevronRight size={16} />
+          </button>
+        </div>
       </div>
 
       {/* Toggle entre 'Por cuenta' y 'Por concepto' */}
@@ -277,6 +458,36 @@ export function ResumenView({
             </div>
           </div>
         </div>
+
+        {/* Resumen de entradas y balance del período */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '16px',
+            marginTop: '16px',
+            paddingTop: '14px',
+            borderTop: '1px dashed var(--c-border)',
+            width: '100%',
+            fontSize: '12px',
+            flexWrap: 'wrap',
+          }}
+        >
+          <div style={{ color: 'var(--c-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span>Entradas:</span>
+            <strong style={{ color: '#059669' }}>
+              +{currSymbol} {totalIngresos.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </strong>
+          </div>
+          <div style={{ color: 'var(--c-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span>Balance:</span>
+            <strong style={{ color: balancePeriodo < 0 ? 'var(--c-accent)' : '#059669' }}>
+              {balancePeriodo < 0 ? '-' : '+'}{currSymbol}{' '}
+              {Math.abs(balancePeriodo).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </strong>
+          </div>
+        </div>
       </div>
 
       {/* Lista de Desglose Detallado: Lo que se ha gastado y lo que queda en cada cuenta */}
@@ -305,9 +516,9 @@ export function ResumenView({
             : 'Desglose detallado por concepto de gasto'}
         </div>
 
-        {breakdown.length === 0 ? (
+        {breakdown.length === 0 || (totalGastado === 0 && viewMode === 'n2') ? (
           <div style={{ textAlign: 'center', padding: '16px 0', color: 'var(--c-muted)', fontSize: '13px' }}>
-            No hay movimientos registrados en esta moneda aún.
+            No hay gastos registrados en esta moneda para este período.
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -417,32 +628,59 @@ export function ResumenView({
         )}
       </div>
 
-      {/* Historial Reciente de Movimientos */}
-      {transacciones.length > 0 && (
+      {/* Historial de Movimientos del Período */}
+      <div
+        style={{
+          backgroundColor: 'var(--c-surface)',
+          borderRadius: '24px',
+          padding: '20px',
+          border: '1px solid var(--c-border)',
+          boxShadow: 'var(--shadow-subtle)',
+        }}
+      >
         <div
           style={{
-            backgroundColor: 'var(--c-surface)',
-            borderRadius: '24px',
-            padding: '20px',
-            border: '1px solid var(--c-border)',
-            boxShadow: 'var(--shadow-subtle)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '14px',
           }}
         >
           <div
             style={{
               fontSize: '11px',
               color: 'var(--c-muted)',
-              marginBottom: '14px',
               fontWeight: '600',
               textTransform: 'uppercase',
               letterSpacing: '0.04em',
             }}
           >
-            Últimos movimientos
+            {selectedMonth === 'all'
+              ? 'Últimos movimientos'
+              : `Movimientos de ${formatPeriodoLabel(selectedMonth)}`}
           </div>
+          <div
+            style={{
+              fontSize: '11px',
+              color: 'var(--c-accent)',
+              backgroundColor: 'var(--c-surface-2)',
+              padding: '2px 8px',
+              borderRadius: '9999px',
+              fontWeight: '600',
+            }}
+          >
+            {movimientosDelPeriodo.length}{' '}
+            {movimientosDelPeriodo.length === 1 ? 'movimiento' : 'movimientos'}
+          </div>
+        </div>
 
+        {movimientosDelPeriodo.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--c-muted)', fontSize: '13px' }}>
+            No hay movimientos registrados en {selectedMonth === 'all' ? 'este período' : formatPeriodoLabel(selectedMonth)}.
+          </div>
+        ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {transacciones.slice(0, 15).map((t) => {
+            {(selectedMonth === 'all' ? movimientosDelPeriodo.slice(0, 20) : movimientosDelPeriodo).map((t) => {
               const catN1 = categoriasN1.find((c) => c.id === t.categoria_n1_id);
               const catN2 = categoriasN2.find((c) => c.id === t.categoria_n2_id);
               const isIngreso = t.tipo === 'ingreso';
@@ -561,8 +799,8 @@ export function ResumenView({
               );
             })}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Modal Editar Movimiento */}
       <EditarTransaccionModal
