@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Plus, X, Tag, Landmark, Users, FileText, ChevronRight } from 'lucide-react';
+import { Plus, X, Tag, Landmark, Users, FileText, ChevronRight, CheckSquare } from 'lucide-react';
 import { getCategoryIcon } from '../lib/icons';
 import { ReportePreviewModal } from '../components/ReportePreviewModal';
 import { CuentaDetalleModal } from '../components/CuentaDetalleModal';
 import { MetodoPagoDetalleModal } from '../components/MetodoPagoDetalleModal';
 import { EditarTransaccionModal } from '../components/EditarTransaccionModal';
+import { CuentasMultiPdfModal } from '../components/CuentasMultiPdfModal';
 
 export function CategoriasView({
   categoriasN1,
@@ -30,6 +31,7 @@ export function CategoriasView({
   const [selectedCuentaParaDetalle, setSelectedCuentaParaDetalle] = useState(null);
   const [selectedMetodoParaDetalle, setSelectedMetodoParaDetalle] = useState(null);
   const [editingTransaccion, setEditingTransaccion] = useState(null);
+  const [showMultiPdfModal, setShowMultiPdfModal] = useState(false);
 
   const handleAdd = (e) => {
     e.preventDefault();
@@ -235,21 +237,121 @@ export function CategoriasView({
 
       {/* CONTENIDO SEGÚN SUBTAB */}
       <div>
+        {/* Opción destacada: Reporte PDF de varias cuentas */}
+        {activeSubTab === 'n1' && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '14px 16px',
+              borderRadius: '18px',
+              backgroundColor: 'var(--c-surface)',
+              border: '1px solid var(--c-border)',
+              boxShadow: 'var(--shadow-subtle)',
+              marginBottom: '16px',
+              gap: '12px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div
+                style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '12px',
+                  backgroundColor: 'rgba(91, 55, 101, 0.08)',
+                  color: 'var(--c-accent)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <FileText size={20} />
+              </div>
+              <div>
+                <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--c-text)' }}>
+                  Reporte PDF de varias cuentas
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--c-muted)', marginTop: '2px' }}>
+                  Selecciona todas las cuentas que quieras unir en un solo PDF o Excel
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowMultiPdfModal(true)}
+              className="tap-active"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 14px',
+                borderRadius: '12px',
+                backgroundColor: 'var(--c-accent)',
+                color: '#FFFFFF',
+                fontSize: '12px',
+                fontWeight: '600',
+                border: 'none',
+                cursor: 'pointer',
+                flexShrink: 0,
+              }}
+            >
+              <CheckSquare size={15} />
+              <span>Seleccionar cuentas</span>
+            </button>
+          </div>
+        )}
+
         <div
           style={{
-            fontSize: '11px',
-            color: 'var(--c-muted)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
             marginBottom: '12px',
-            fontWeight: '600',
-            textTransform: 'uppercase',
-            letterSpacing: '0.04em',
+            flexWrap: 'wrap',
+            gap: '8px',
           }}
         >
-          {activeSubTab === 'n1'
-            ? 'Cuentas y sus saldos (Toca una cuenta para ver sus movimientos)'
-            : activeSubTab === 'n2'
-            ? 'Conceptos de gasto'
-            : 'Métodos de pago (Toca un método para ver sus movimientos)'}
+          <div
+            style={{
+              fontSize: '11px',
+              color: 'var(--c-muted)',
+              fontWeight: '600',
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+            }}
+          >
+            {activeSubTab === 'n1'
+              ? 'Cuentas y sus saldos (Toca una cuenta para ver sus movimientos)'
+              : activeSubTab === 'n2'
+              ? 'Conceptos de gasto'
+              : 'Métodos de pago (Toca un método para ver sus movimientos)'}
+          </div>
+
+          {activeSubTab === 'n1' && (
+            <button
+              type="button"
+              onClick={() => setShowMultiPdfModal(true)}
+              className="tap-active"
+              style={{
+                fontSize: '12px',
+                color: 'var(--c-accent)',
+                fontWeight: '600',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '2px 6px',
+              }}
+            >
+              <FileText size={13} />
+              <span>Unir en un solo PDF</span>
+            </button>
+          )}
         </div>
 
         {/* Cuentas N1 con Balance, clic para ver movimientos y botón Reporte / PDF */}
@@ -609,6 +711,17 @@ export function CategoriasView({
         categoriasN2={categoriasN2}
         cuentas={cuentas}
         onUpdate={onUpdateTransaccion}
+      />
+
+      {/* Modal 5: Reporte PDF Multi-cuenta */}
+      <CuentasMultiPdfModal
+        isOpen={showMultiPdfModal}
+        onClose={() => setShowMultiPdfModal(false)}
+        categoriasN1={categoriasN1}
+        transacciones={transacciones}
+        categoriasN2={categoriasN2}
+        cuentas={cuentas}
+        selectedCurrency={selectedCurrency}
       />
     </div>
   );
