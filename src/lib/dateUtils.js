@@ -60,3 +60,25 @@ export function getAvailableMonths(transacciones = []) {
     label: formatPeriodoLabel(key),
   }));
 }
+
+/**
+ * Retorna la etiqueta 'Saldo de [Mes anterior]' a partir de un monthKey 'YYYY-MM' o 'all'
+ * Ej: '2026-07' -> 'Saldo de Junio'
+ */
+export function getNombreMesAnterior(monthKey) {
+  if (!monthKey || monthKey === 'all') return 'Saldo anterior';
+  const parts = monthKey.split('-');
+  if (parts.length !== 2) return 'Saldo anterior';
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10);
+
+  let prevMonth = month - 1;
+  let prevYear = year;
+  if (prevMonth === 0) {
+    prevMonth = 12;
+    prevYear -= 1;
+  }
+  const monthName = MESES_ES[prevMonth - 1] || String(prevMonth);
+  return `Saldo de ${monthName}`;
+}
+
