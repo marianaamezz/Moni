@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Keypad } from '../components/Keypad';
 import { getCategoryIcon } from '../lib/icons';
 import { ChevronDown, ChevronUp, Check, Calendar, FileText, ArrowRight, Repeat } from 'lucide-react';
-import { getTodayLocalDateString, dateStringToIso } from '../lib/dateUtils';
+import { getTodayLocalDateString, dateStringToIso, dateToInputString } from '../lib/dateUtils';
+import { DuplicadoAlertaModal } from '../components/DuplicadoAlertaModal';
 
 export function RegistrarView({
   categoriasN1,
   categoriasN2,
   cuentas,
+  transacciones = [],
   onSaveTransaccion,
   onSaveTransferencia,
   selectedCurrency,
@@ -23,6 +25,8 @@ export function RegistrarView({
   const [fecha, setFecha] = useState(() => getTodayLocalDateString());
   const [showMoreOptions, setShowMoreOptions] = useState(false);
   const [savedFeedback, setSavedFeedback] = useState(false);
+  const [duplicadoDetectado, setDuplicadoDetectado] = useState(null);
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
 
   // Asegurar selección inicial de N1 si aún no está lista
   useEffect(() => {
@@ -56,9 +60,56 @@ export function RegistrarView({
     fecha !== getTodayLocalDateString(),
   ].filter(Boolean).length;
 
-  const handleSave = async () => {
-    if (!isFormValid) return;
+  // Detección de posibles gastos duplicados en cualquiera de las cuentas
+  const findPosibleDuplicado = () => {
+    if (!transacciones || transacciones.length === 0) return null;
+    if (tipo !== 'gasto' || montoNum <= 0) return null;
 
+    const curFechaStr = dateToInputString(fecha);
+    const curNota = (nota || '').trim().toLowerCase();
+    const curN2 = selectedN2 || null;
+
+    return (
+      transacciones.find((t) => {
+        // Solo comparar con otros gastos
+        if (t.tipo !== 'gasto') return false;
+
+        // 1. Mismo monto (tolerancia para decimales flotantes)
+        if (Math.abs(Number(t.monto) - montoNum) > 0.001) return false;
+
+        // 2. Misma moneda
+        if ((t.moneda || 'PEN') !== selectedCurrency) return false;
+
+        // 3. Misma fecha calendario
+        const tFechaStr = dateToInputString(t.fecha);
+        if (tFechaStr !== curFechaStr) return false;
+
+        // 4. Detalle y Concepto
+        const tNota = (t.nota || '').trim().toLowerCase();
+        const tN2 = t.categoria_n2_id || null;
+
+        // Si ambos tienen notas distintas escritas, no son iguales
+        if (tNota && curNota && tNota !== curNota) return false;
+
+        // Si ambos tienen conceptos N2 distintos seleccionados, no son iguales
+        if (tN2 && curN2 && tN2 !== curN2) return false;
+
+        // Si ambos tienen la misma nota (no vacía), es duplicado exacto
+        if (tNota && curNota && tNota === curNota) return true;
+
+        // Si ambos tienen el mismo concepto N2 (no nulo) y notas no contradictorias
+        if (tN2 && curN2 && tN2 === curN2 && (!tNota || !curNota || tNota === curNota)) return true;
+
+        // Si ninguno tiene nota ni concepto N2, coinciden en todo (monto, fecha, moneda)
+        if (!tNota && !curNota && !tN2 && !curN2) return true;
+
+        // En cualquier otro caso, coincidencia exacta de nota y concepto
+        return tNota === curNota && tN2 === curN2;
+      }) || null
+    );
+  };
+
+  const executeSave = async () => {
     try {
       const fechaIso = dateStringToIso(fecha);
 
@@ -103,6 +154,33 @@ export function RegistrarView({
     } catch (err) {
       console.error('Error al guardar:', err);
     }
+  };
+
+  const handleSave = async () => {
+    if (!isFormValid) return;
+
+    // Solo comprobar posibles duplicados cuando es un gasto
+    if (tipo === 'gasto') {
+      const dup = findPosibleDuplicado();
+      if (dup) {
+        setDuplicadoDetectado(dup);
+        setShowDuplicateModal(true);
+        return;
+      }
+    }
+
+    await executeSave();
+  };
+
+  const handleConfirmDuplicate = async () => {
+    setShowDuplicateModal(false);
+    setDuplicadoDetectado(null);
+    await executeSave();
+  };
+
+  const handleCancelDuplicate = () => {
+    setShowDuplicateModal(false);
+    setDuplicadoDetectado(null);
   };
 
   const origenCat = categoriasN1.find((c) => c.id === selectedN1);
@@ -695,6 +773,18 @@ export function RegistrarView({
           <span>{isTransferencia ? 'Transferencia realizada con éxito' : 'Registrado con éxito'}</span>
         </div>
       )}
+
+      {/* Modal de Alerta de Posible Gasto Duplicado */}
+      <DuplicadoAlertaModal
+        isOpen={showDuplicateModal}
+        onClose={handleCancelDuplicate}
+        onConfirm={handleConfirmDuplicate}
+        duplicado={duplicadoDetectado}
+        selectedN1Id={selectedN1}
+        categoriasN1={categoriasN1}
+        categoriasN2={categoriasN2}
+        cuentas={cuentas}
+      />
     </div>
   );
 }

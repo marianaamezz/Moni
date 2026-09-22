@@ -115,6 +115,7 @@ function MainApp() {
             categoriasN1={categoriasN1}
             categoriasN2={categoriasN2}
             cuentas={cuentas}
+            transacciones={transacciones}
             onSaveTransaccion={addTransaccion}
             onSaveTransferencia={addTransferencia}
             selectedCurrency={selectedCurrency}
