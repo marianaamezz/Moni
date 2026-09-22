@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Keypad } from '../components/Keypad';
 import { getCategoryIcon } from '../lib/icons';
 import { ChevronDown, ChevronUp, Check, Calendar, FileText, ArrowRight, Repeat } from 'lucide-react';
+import { getTodayLocalDateString, dateStringToIso } from '../lib/dateUtils';
 
 export function RegistrarView({
   categoriasN1,
@@ -19,7 +20,7 @@ export function RegistrarView({
   const [selectedN2, setSelectedN2] = useState(null);
   const [selectedCuenta, setSelectedCuenta] = useState(null);
   const [nota, setNota] = useState('');
-  const [fecha, setFecha] = useState(() => new Date().toISOString().split('T')[0]);
+  const [fecha, setFecha] = useState(() => getTodayLocalDateString());
   const [showMoreOptions, setShowMoreOptions] = useState(false);
   const [savedFeedback, setSavedFeedback] = useState(false);
 
@@ -52,13 +53,15 @@ export function RegistrarView({
   const secondaryCount = [
     Boolean(selectedN2),
     Boolean(selectedCuenta),
-    fecha !== new Date().toISOString().split('T')[0],
+    fecha !== getTodayLocalDateString(),
   ].filter(Boolean).length;
 
   const handleSave = async () => {
     if (!isFormValid) return;
 
     try {
+      const fechaIso = dateStringToIso(fecha);
+
       if (isTransferencia) {
         const origenCat = categoriasN1.find((c) => c.id === selectedN1);
         const destinoCat = categoriasN1.find((c) => c.id === selectedDestinoN1);
@@ -71,7 +74,7 @@ export function RegistrarView({
           origenNombre: origenCat?.nombre || 'Origen',
           destinoNombre: destinoCat?.nombre || 'Destino',
           nota: nota.trim(),
-          fecha: new Date(fecha).toISOString(),
+          fecha: fechaIso,
         });
       } else {
         await onSaveTransaccion({
@@ -82,7 +85,7 @@ export function RegistrarView({
           categoria_n2_id: selectedN2,
           cuenta_id: selectedCuenta,
           nota: nota.trim(),
-          fecha: new Date(fecha).toISOString(),
+          fecha: fechaIso,
         });
       }
 
@@ -91,6 +94,7 @@ export function RegistrarView({
       setSelectedN2(null);
       setSelectedCuenta(null);
       setNota('');
+      setFecha(getTodayLocalDateString());
       setShowMoreOptions(false);
 
       // Feedback visual suave

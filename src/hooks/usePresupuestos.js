@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { parseDateSafe } from '../lib/dateUtils';
 
 export function usePresupuestos(transacciones = []) {
   const { user } = useAuth();
@@ -61,8 +62,8 @@ export function usePresupuestos(transacciones = []) {
         if (t.tipo !== 'gasto') return false;
         if (t.moneda !== (p.moneda || 'PEN')) return false;
 
-        const d = new Date(t.fecha);
-        const matchPeriodo = d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+        const d = parseDateSafe(t.fecha);
+        const matchPeriodo = d && d.getFullYear() === currentYear && d.getMonth() === currentMonth;
         if (!matchPeriodo) return false;
 
         // Validar filtros de categoría

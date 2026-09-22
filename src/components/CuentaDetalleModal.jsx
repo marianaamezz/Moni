@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Trash2, Pencil, ArrowUpRight, ArrowDownLeft, FileText, Printer, Calendar, ChevronDown, ChevronUp } from 'lucide-react';
 import { getCategoryIcon } from '../lib/icons';
+import { formatFechaCorta, formatFechaCompleta } from '../lib/dateUtils';
 
 export function CuentaDetalleModal({
   isOpen,
@@ -263,24 +264,9 @@ export function CuentaDetalleModal({
                   iconColor = 'var(--c-accent2)';
                 }
 
-                // Formateo seguro de fecha
-                const fechaObj = t.fecha ? new Date(t.fecha) : null;
-                const isValidDate = fechaObj && !isNaN(fechaObj.getTime());
-                const fechaCorta = isValidDate
-                  ? fechaObj.toLocaleDateString('es-PE', {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric',
-                    })
-                  : 'Sin fecha';
-                const fechaCompleta = isValidDate
-                  ? fechaObj.toLocaleDateString('es-PE', {
-                      weekday: 'long',
-                      day: 'numeric',
-                      month: 'long',
-                      year: 'numeric',
-                    })
-                  : 'Sin fecha';
+                // Formateo seguro de fecha (resistente a zonas horarias)
+                const fechaCorta = formatFechaCorta(t.fecha);
+                const fechaCompleta = formatFechaCompleta(t.fecha);
 
                 return (
                   <div

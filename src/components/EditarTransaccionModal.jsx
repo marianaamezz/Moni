@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Check, Calendar, CreditCard, Landmark, Tag, FileText } from 'lucide-react';
 import { getCategoryIcon } from '../lib/icons';
+import { dateToInputString, dateStringToIso } from '../lib/dateUtils';
 
 export function EditarTransaccionModal({
   isOpen,
@@ -34,12 +35,7 @@ export function EditarTransaccionModal({
       setNota(transaccion.nota || '');
 
       // Formato seguro YYYY-MM-DD para <input type="date">
-      if (transaccion.fecha) {
-        const fechaStr = String(transaccion.fecha).slice(0, 10);
-        setFecha(fechaStr);
-      } else {
-        setFecha(new Date().toISOString().slice(0, 10));
-      }
+      setFecha(dateToInputString(transaccion.fecha));
       setError(null);
     }
   }, [transaccion, isOpen]);
@@ -63,14 +59,7 @@ export function EditarTransaccionModal({
     setError(null);
 
     try {
-      // Fecha en ISO string
-      let fechaIso = new Date().toISOString();
-      if (fecha) {
-        // Asegurar que guardamos con fecha seleccionada
-        const [y, m, d] = fecha.split('-');
-        const dateObj = new Date(parseInt(y, 10), parseInt(m, 10) - 1, parseInt(d, 10), 12, 0, 0);
-        fechaIso = dateObj.toISOString();
-      }
+      const fechaIso = dateStringToIso(fecha);
 
       await onUpdate(transaccion.id, {
         monto: montoNum,

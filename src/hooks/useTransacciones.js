@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { dateStringToIso } from '../lib/dateUtils';
 
 export function useTransacciones() {
   const { user } = useAuth();
@@ -78,13 +79,14 @@ export function useTransacciones() {
     categoria_n2_id = null,
     cuenta_id = null,
     nota = '',
-    fecha = new Date().toISOString(),
+    fecha,
   }) => {
     if (!user || !monto || Number(monto) <= 0 || !categoria_n1_id) {
       throw new Error('Monto y categoría nivel 1 son obligatorios');
     }
 
     const cleanMonto = Number(monto);
+    const fechaIso = dateStringToIso(fecha);
 
     if (!isSupabaseConfigured) {
       const newItem = {
@@ -97,7 +99,7 @@ export function useTransacciones() {
         categoria_n2_id: categoria_n2_id || null,
         cuenta_id: cuenta_id || null,
         nota: nota ? nota.trim() : null,
-        fecha,
+        fecha: fechaIso,
         created_at: new Date().toISOString(),
       };
       const updated = [newItem, ...transacciones];
@@ -115,7 +117,7 @@ export function useTransacciones() {
       categoria_n2_id: categoria_n2_id || null,
       cuenta_id: cuenta_id || null,
       nota: nota ? nota.trim() : null,
-      fecha,
+      fecha: fechaIso,
     };
 
     const { data, error } = await supabase
@@ -147,7 +149,7 @@ export function useTransacciones() {
     origenNombre = '',
     destinoNombre = '',
     nota = '',
-    fecha = new Date().toISOString(),
+    fecha,
   }) => {
     if (!user || !monto || Number(monto) <= 0 || !origenId || !destinoId) {
       throw new Error('Monto, categoría origen y categoría destino son obligatorios');
@@ -158,6 +160,7 @@ export function useTransacciones() {
     }
 
     const cleanMonto = Number(monto);
+    const fechaIso = dateStringToIso(fecha);
     const notaLimpia = nota ? nota.trim() : '';
 
     const notaSalida = notaLimpia
@@ -180,7 +183,7 @@ export function useTransacciones() {
         categoria_n2_id: null,
         cuenta_id: null,
         nota: notaSalida,
-        fecha,
+        fecha: fechaIso,
         created_at: new Date().toISOString(),
       };
 
@@ -194,7 +197,7 @@ export function useTransacciones() {
         categoria_n2_id: null,
         cuenta_id: null,
         nota: notaEntrada,
-        fecha,
+        fecha: fechaIso,
         created_at: new Date().toISOString(),
       };
 
@@ -215,7 +218,7 @@ export function useTransacciones() {
         categoria_n2_id: null,
         cuenta_id: null,
         nota: notaSalida,
-        fecha,
+        fecha: fechaIso,
       },
       {
         user_id: user.id,
@@ -226,7 +229,7 @@ export function useTransacciones() {
         categoria_n2_id: null,
         cuenta_id: null,
         nota: notaEntrada,
-        fecha,
+        fecha: fechaIso,
       },
     ];
 
@@ -275,7 +278,7 @@ export function useTransacciones() {
       categoria_n2_id: updatedFields.categoria_n2_id || null,
       cuenta_id: updatedFields.cuenta_id || null,
       nota: updatedFields.nota ? updatedFields.nota.trim() : null,
-      fecha: updatedFields.fecha,
+      fecha: updatedFields.fecha ? dateStringToIso(updatedFields.fecha) : undefined,
     };
 
     if (!isSupabaseConfigured) {

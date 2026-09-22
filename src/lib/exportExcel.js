@@ -1,4 +1,10 @@
-import { formatPeriodoLabel, getNombreMesAnterior } from './dateUtils';
+import {
+  formatPeriodoLabel,
+  getNombreMesAnterior,
+  parseDateSafe,
+  formatFechaNumerica,
+  getTodayLocalDateString,
+} from './dateUtils';
 
 /**
  * Genera y calcula las filas del libro contable con formato:
@@ -43,8 +49,8 @@ export function buildLedgerRows({
 
   // 3. Ordenar cronológicamente (antiguo a reciente)
   const movimientosOrdenados = [...movimientosMes].sort((a, b) => {
-    const da = new Date(a.fecha || 0).getTime();
-    const db = new Date(b.fecha || 0).getTime();
+    const da = parseDateSafe(a.fecha)?.getTime() || 0;
+    const db = parseDateSafe(b.fecha)?.getTime() || 0;
     if (da !== db) return da - db;
     return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
   });
@@ -76,13 +82,7 @@ export function buildLedgerRows({
       detalle = isIngreso ? 'Ingreso' : 'Gasto';
     }
 
-    const fechaStr = t.fecha
-      ? new Date(t.fecha).toLocaleDateString('es-PE', {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric',
-        })
-      : '';
+    const fechaStr = formatFechaNumerica(t.fecha);
 
     // Gastos por cuenta
     const gastosPorCuenta = {};
@@ -246,7 +246,7 @@ export function exportCategoryToExcel({
   const link = document.createElement('a');
 
   const cleanCatName = (categoriaN1.nombre || 'Cuenta').replace(/[^a-zA-Z0-9_-]/g, '_');
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getTodayLocalDateString();
   const periodSlug = selectedMonth && selectedMonth !== 'all' ? selectedMonth : 'Historico';
 
   link.setAttribute('href', url);
@@ -283,7 +283,7 @@ export function exportMultiCategoriesToExcel({
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getTodayLocalDateString();
   const periodSlug = selectedMonth && selectedMonth !== 'all' ? selectedMonth : 'Historico';
 
   link.setAttribute('href', url);

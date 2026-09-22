@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { getCategoryIcon } from '../lib/icons';
 import { PieChart, Trash2, Pencil, Calendar, ArrowUpRight, ArrowDownLeft, ChevronLeft, ChevronRight } from 'lucide-react';
 import { EditarTransaccionModal } from '../components/EditarTransaccionModal';
-import { getAvailableMonths, formatPeriodoLabel } from '../lib/dateUtils';
+import { getAvailableMonths, formatPeriodoLabel, getCurrentMonthKey, formatFechaCorta } from '../lib/dateUtils';
 
 const PALETTE_COLORS = [
   '#5B3765', // accent principal
@@ -27,7 +27,7 @@ export function ResumenView({
   const [editingTransaccion, setEditingTransaccion] = useState(null);
 
   const availableMonths = useMemo(() => getAvailableMonths(transacciones), [transacciones]);
-  const currentMonthKey = useMemo(() => new Date().toISOString().slice(0, 7), []);
+  const currentMonthKey = useMemo(() => getCurrentMonthKey(), []);
 
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const hasInCurrent = transacciones.some(
@@ -745,7 +745,7 @@ export function ResumenView({
                       </div>
                       <div style={{ fontSize: '11px', color: 'var(--c-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
                         <span style={{ fontWeight: '500', color: 'var(--c-accent)' }}>
-                          {t.fecha ? new Date(t.fecha).toLocaleDateString('es-PE', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                          {formatFechaCorta(t.fecha)}
                         </span>
                         {t.nota && (
                           <>
