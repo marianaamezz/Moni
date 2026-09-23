@@ -105,7 +105,7 @@ export function DuplicadoAlertaModal({
               lineHeight: 1.45,
             }}
           >
-            Ya existe un gasto registrado con los mismos datos en tus cuentas:
+            Ya existe un gasto registrado con la misma fecha y monto en tus cuentas:
           </p>
         </div>
 

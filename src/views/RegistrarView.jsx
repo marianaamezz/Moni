@@ -60,14 +60,12 @@ export function RegistrarView({
     fecha !== getTodayLocalDateString(),
   ].filter(Boolean).length;
 
-  // Detección de posibles gastos duplicados en cualquiera de las cuentas
+  // Detección de posibles gastos duplicados en cualquiera de las cuentas (mismo monto y misma fecha)
   const findPosibleDuplicado = () => {
     if (!transacciones || transacciones.length === 0) return null;
     if (tipo !== 'gasto' || montoNum <= 0) return null;
 
     const curFechaStr = dateToInputString(fecha);
-    const curNota = (nota || '').trim().toLowerCase();
-    const curN2 = selectedN2 || null;
 
     return (
       transacciones.find((t) => {
@@ -84,27 +82,7 @@ export function RegistrarView({
         const tFechaStr = dateToInputString(t.fecha);
         if (tFechaStr !== curFechaStr) return false;
 
-        // 4. Detalle y Concepto
-        const tNota = (t.nota || '').trim().toLowerCase();
-        const tN2 = t.categoria_n2_id || null;
-
-        // Si ambos tienen notas distintas escritas, no son iguales
-        if (tNota && curNota && tNota !== curNota) return false;
-
-        // Si ambos tienen conceptos N2 distintos seleccionados, no son iguales
-        if (tN2 && curN2 && tN2 !== curN2) return false;
-
-        // Si ambos tienen la misma nota (no vacía), es duplicado exacto
-        if (tNota && curNota && tNota === curNota) return true;
-
-        // Si ambos tienen el mismo concepto N2 (no nulo) y notas no contradictorias
-        if (tN2 && curN2 && tN2 === curN2 && (!tNota || !curNota || tNota === curNota)) return true;
-
-        // Si ninguno tiene nota ni concepto N2, coinciden en todo (monto, fecha, moneda)
-        if (!tNota && !curNota && !tN2 && !curN2) return true;
-
-        // En cualquier otro caso, coincidencia exacta de nota y concepto
-        return tNota === curNota && tN2 === curN2;
+        return true;
       }) || null
     );
   };
